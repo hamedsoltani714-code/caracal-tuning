@@ -27,7 +27,7 @@ jobs:
 
       - name: Build Android APK
         run: |
-          flutter create . --platforms=android
+          flutter create . --platforms=android --project-name caracal_tuning
           flutter pub get
           flutter build apk --release
 
