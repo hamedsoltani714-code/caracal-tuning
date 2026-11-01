@@ -1,14 +1,28 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-void main() => runApp(const CaracalApp());
+const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+bool get supabaseConfigured => supabaseUrl.startsWith('https://') && supabaseAnonKey.isNotEmpty;
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  if (supabaseConfigured) {
+    await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
+  }
+  runApp(const CaracalApp());
+}
 
 const silver = Color(0xFFD0D3D6);
 const silverDark = Color(0xFF777D83);
 const bg = Color(0xFF08090B);
 const panel = Color(0xFF15171A);
 const accent = Color(0xFFE13B35);
+const introEngineSoundUrl = 'https://sfxmint.com/dl/car-revving-06.mp3';
 
 class CaracalApp extends StatelessWidget {
   const CaracalApp({super.key});
@@ -36,17 +50,29 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
   late final AnimationController rev = AnimationController(vsync: this, duration: const Duration(milliseconds: 3300));
+  final AudioPlayer introPlayer = AudioPlayer();
+  Future<void> playIntroIfEnabled() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool('caracal_sound_enabled') ?? true) {
+        await introPlayer.setPlayerMode(PlayerMode.lowLatency);
+        await introPlayer.setVolume(0.85);
+        await introPlayer.play(UrlSource(introEngineSoundUrl));
+      }
+    } catch (_) { /* Sound is optional; the app must still open offline. */ }
+  }
   late final AnimationController pulse = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat(reverse: true);
   @override
   void initState() {
     super.initState();
     rev.forward();
+    playIntroIfEnabled();
     Timer(const Duration(milliseconds: 4300), () {
       if (mounted) Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const MainScreen()));
     });
   }
   @override
-  void dispose() { rev.dispose(); pulse.dispose(); super.dispose(); }
+  void dispose() { introPlayer.dispose(); rev.dispose(); pulse.dispose(); super.dispose(); }
   @override
   Widget build(BuildContext context) => Scaffold(
         body: AnimatedBuilder(
@@ -138,8 +164,18 @@ const lessons = <Lesson>[
 
 class MainScreen extends StatefulWidget { const MainScreen({super.key}); @override State<MainScreen> createState()=>_MainScreenState(); }
 class _MainScreenState extends State<MainScreen> {
- bool fa=true, sound=true; int tab=0; String query='';
+ bool fa=true, sound=true; int tab=0; String query=''; List<Lesson> remoteLessons=[];
  String t(String a,String b)=>fa?a:b;
+ @override void initState(){super.initState();_loadSoundPreference();loadRemoteLessons();}
+ Future<void> _loadSoundPreference() async { final p=await SharedPreferences.getInstance(); if(mounted)setState(()=>sound=p.getBool('caracal_sound_enabled')??true); }
+ Future<void> loadRemoteLessons() async {
+  if(!supabaseConfigured)return;
+  try { final rows=await Supabase.instance.client.from('lessons').select().eq('is_published',true).order('created_at',ascending:false);
+   final parsed=rows.map<Lesson>((e)=>Lesson(e['title_fa']??'آموزش',e['title_en']??'Lesson',e['summary_fa']??'',e['body_fa']??'',e['body_en']??'',Icons.menu_book)).toList();
+   if(mounted)setState(()=>remoteLessons=parsed);
+  } catch (_) {}
+ }
+ List<Lesson> get allLessons=>[...lessons,...remoteLessons];
  @override Widget build(BuildContext context)=>Directionality(textDirection:fa?TextDirection.rtl:TextDirection.ltr,child:Scaffold(
   appBar:AppBar(title:Row(children:[const SizedBox(width:30,height:30,child:CustomPaint(painter:CaracalMarkPainter())),const SizedBox(width:10),const Text('CARACAL TUNING',style:TextStyle(fontSize:15,fontWeight:FontWeight.w900,letterSpacing:1.4))]),actions:[TextButton(onPressed:()=>setState(()=>fa=!fa),child:Text(fa?'EN':'فا',style:const TextStyle(color:silver,fontWeight:FontWeight.bold))),IconButton(onPressed:openSettings,icon:const Icon(Icons.tune,color:silver))]),
   body:IndexedStack(index:tab,children:[home(),academy(),account()]),
@@ -152,11 +188,124 @@ class _MainScreenState extends State<MainScreen> {
   Container(margin:const EdgeInsets.only(top:12),padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:panel,borderRadius:BorderRadius.circular(16),border:Border.all(color:Colors.white10)),child:Row(children:[const Icon(Icons.workspace_premium,color:silver,size:30),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(t('عضویت حرفه‌ای','PRO MEMBERSHIP'),style:const TextStyle(fontWeight:FontWeight.bold)),Text(t('بخش اشتراک در نسخه متصل به سرور فعال می‌شود.','Membership will activate with the connected backend.'),style:const TextStyle(color:Colors.white54,fontSize:12))]))]))
  ]);
  Widget category(IconData icon,String title,int index)=>InkWell(onTap:()=>openLesson(lessons[index]),borderRadius:BorderRadius.circular(16),child:Container(decoration:BoxDecoration(color:panel,borderRadius:BorderRadius.circular(16),border:Border.all(color:Colors.white12)),child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[Icon(icon,color:silver,size:31),const SizedBox(height:9),Text(title,textAlign:TextAlign.center,style:const TextStyle(fontSize:12,fontWeight:FontWeight.bold))])));
- Widget academy()=>Column(children:[Padding(padding:const EdgeInsets.fromLTRB(16,14,16,8),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(t('کتابخانه آموزش','LEARNING LIBRARY'),style:const TextStyle(fontSize:22,fontWeight:FontWeight.w900)),const SizedBox(height:12),TextField(onChanged:(v)=>setState(()=>query=v),decoration:InputDecoration(hintText:t('جست‌وجوی آموزش...','Search lessons...'),prefixIcon:const Icon(Icons.search),filled:true,fillColor:panel,border:OutlineInputBorder(borderRadius:BorderRadius.circular(14),borderSide:BorderSide.none)))])),Expanded(child:ListView(padding:const EdgeInsets.symmetric(horizontal:16),children:lessons.where((l)=>('${l.fa} ${l.en} ${l.sub}').toLowerCase().contains(query.toLowerCase())).map(lessonTile).toList())]);
+ Widget academy()=>Column(children:[Padding(padding:const EdgeInsets.fromLTRB(16,14,16,8),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(t('کتابخانه آموزش','LEARNING LIBRARY'),style:const TextStyle(fontSize:22,fontWeight:FontWeight.w900)),const SizedBox(height:12),TextField(onChanged:(v)=>setState(()=>query=v),decoration:InputDecoration(hintText:t('جست‌وجوی آموزش...','Search lessons...'),prefixIcon:const Icon(Icons.search),filled:true,fillColor:panel,border:OutlineInputBorder(borderRadius:BorderRadius.circular(14),borderSide:BorderSide.none)))])),Expanded(child:ListView(padding:const EdgeInsets.symmetric(horizontal:16),children:allLessons.where((l)=>('${l.fa} ${l.en} ${l.sub}').toLowerCase().contains(query.toLowerCase())).map(lessonTile).toList())]);
  Widget lessonTile(Lesson l)=>Card(color:panel,margin:const EdgeInsets.only(bottom:10),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14),side:const BorderSide(color:Colors.white10)),child:ListTile(contentPadding:const EdgeInsets.symmetric(horizontal:14,vertical:7),leading:CircleAvatar(backgroundColor:Colors.white10,child:Icon(l.icon,color:silver)),title:Text(fa?l.fa:l.en,style:const TextStyle(fontWeight:FontWeight.bold)),subtitle:Text(fa?l.sub:'Technical introduction',style:const TextStyle(color:Colors.white54)),trailing:const Icon(Icons.chevron_right,color:silver),onTap:()=>openLesson(l)));
  void openLesson(Lesson l)=>Navigator.push(context,MaterialPageRoute(builder:(_)=>LessonScreen(lesson:l,fa:fa)));
- Widget account()=>ListView(padding:const EdgeInsets.all(20),children:[const SizedBox(height:18),const Center(child:SizedBox(width:110,height:100,child:CustomPaint(painter:CaracalMarkPainter()))),const SizedBox(height:14),Center(child:Text(t('حساب کاربری','YOUR ACCOUNT'),style:const TextStyle(fontWeight:FontWeight.w900,fontSize:22))),const SizedBox(height:10),Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:panel,borderRadius:BorderRadius.circular(15)),child:Text(t('ورود، عضویت و همگام‌سازی حساب پس از اتصال امن به Supabase فعال می‌شود. در این نسخه هیچ حساب یا اطلاعاتی به سرور ارسال نمی‌شود.','Sign-in, registration and account sync require a secure Supabase connection. This build does not send account data to a server.'),style:const TextStyle(color:Colors.white70,height:1.8))),const SizedBox(height:14),ListTile(leading:const Icon(Icons.admin_panel_settings,color:silver),title:Text(t('مدیریت مالک و ادمین‌ها','Owner & Admin Management')),subtitle:Text(t('پس از راه‌اندازی بک‌اند و احراز هویت فعال می‌شود.','Available after backend and authentication setup.'))),ListTile(leading:const Icon(Icons.settings,color:silver),title:Text(t('تنظیمات','Settings')),onTap:openSettings)]);
- void openSettings()=>showModalBottomSheet(context:context,backgroundColor:panel,builder:(ctx)=>StatefulBuilder(builder:(ctx,setSheet)=>SafeArea(child:Padding(padding:const EdgeInsets.all(20),child:Column(mainAxisSize:MainAxisSize.min,children:[Text(t('تنظیمات','SETTINGS'),style:const TextStyle(fontWeight:FontWeight.w900,fontSize:18)),SwitchListTile(value:sound,onChanged:(v){setState(()=>sound=v);setSheet(()=>{});},title:Text(t('افکت صوتی','Sound effects')),subtitle:Text(t('کلید آماده‌سازی تنظیم صدا؛ فایل صوتی هنوز به پروژه اضافه نشده است.','Sound preference switch; audio assets are not bundled yet.'))),ListTile(leading:const Icon(Icons.language),title:Text(t('زبان برنامه','App language')),trailing:TextButton(onPressed:(){setState(()=>fa=!fa);Navigator.pop(ctx);},child:Text(fa?'English':'فارسی'))),const SizedBox(height:8)])))));
+ Widget account()=>ListView(padding:const EdgeInsets.all(20),children:[
+  const SizedBox(height:12),const Center(child:SizedBox(width:112,height:100,child:CustomPaint(painter:CaracalMarkPainter()))),
+  const SizedBox(height:12),Center(child:Text(t('حساب کاربری','YOUR ACCOUNT'),style:const TextStyle(fontWeight:FontWeight.w900,fontSize:22))),
+  const SizedBox(height:18),
+  if(!supabaseConfigured) _accountNotice(t('اتصال امن سرور هنوز تنظیم نشده است. برای فعال‌سازی ورود و مدیریت کاربران، SUPABASE_URL و SUPABASE_ANON_KEY باید هنگام ساخت APK تعریف شوند.','Backend is not configured yet. Set SUPABASE_URL and SUPABASE_ANON_KEY at build time to enable authentication and user management.'))
+  else if(Supabase.instance.client.auth.currentUser==null) ...[
+    _accountNotice(t('برای همگام‌سازی آموزش‌ها و استفاده از امکانات حساب کاربری وارد شوید یا ثبت‌نام کنید.','Sign in or create an account to sync learning progress and use account features.')),
+    const SizedBox(height:12),FilledButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>AuthScreen(fa:fa))),icon:const Icon(Icons.login),label:Text(t('ورود / ثبت‌نام','Sign in / Register'))),
+  ] else ...[
+    _accountNotice('${t('وارد شده با','Signed in as')}: ${Supabase.instance.client.auth.currentUser!.email ?? ''}'),
+    ListTile(leading:const Icon(Icons.admin_panel_settings,color:silver),title:Text(t('پنل مدیریت','Administration')),subtitle:Text(t('مدیریت دسترسی‌ها بر اساس نقش مالک و ادمین','Owner and admin role-based access')),onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>OwnerAdminScreen(fa:fa)))),
+    ListTile(leading:const Icon(Icons.logout,color:accent),title:Text(t('خروج از حساب','Sign out')),onTap:()async{await Supabase.instance.client.auth.signOut();setState((){});}),
+  ],
+  const SizedBox(height:12),ListTile(leading:const Icon(Icons.settings,color:silver),title:Text(t('تنظیمات','Settings')),onTap:openSettings)
+ ]);
+ Widget _accountNotice(String text)=>Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:panel,borderRadius:BorderRadius.circular(15),border:Border.all(color:Colors.white10)),child:Text(text,style:const TextStyle(color:Colors.white70,height:1.8)));
+ void openSettings()=>showModalBottomSheet(context:context,backgroundColor:panel,builder:(ctx)=>StatefulBuilder(builder:(ctx,setSheet)=>SafeArea(child:Padding(padding:const EdgeInsets.all(20),child:Column(mainAxisSize:MainAxisSize.min,children:[Text(t('تنظیمات','SETTINGS'),style:const TextStyle(fontWeight:FontWeight.w900,fontSize:18)),SwitchListTile(value:sound,onChanged:(v)async{setState(()=>sound=v);setSheet(()=>{});final p=await SharedPreferences.getInstance();await p.setBool('caracal_sound_enabled',v);},title:Text(t('افکت صوتی','Sound effects')),subtitle:Text(t('صدای استارت و گاز موتور در شروع برنامه','Engine start and rev sound on app launch'))),ListTile(leading:const Icon(Icons.language),title:Text(t('زبان برنامه','App language')),trailing:TextButton(onPressed:(){setState(()=>fa=!fa);Navigator.pop(ctx);},child:Text(fa?'English':'فارسی'))),const SizedBox(height:8)])))));
+}
+
+
+class AuthScreen extends StatefulWidget {
+  final bool fa;
+  const AuthScreen({super.key,required this.fa});
+  @override State<AuthScreen> createState()=>_AuthScreenState();
+}
+class _AuthScreenState extends State<AuthScreen> {
+  final email=TextEditingController(), password=TextEditingController();
+  bool registering=false, busy=false;
+  @override void dispose(){email.dispose();password.dispose();super.dispose();}
+  Future<void> submit() async {
+    if(email.text.trim().isEmpty || password.text.length<8){_message(widget.fa?'ایمیل و رمز حداقل ۸ کاراکتری وارد کنید.':'Enter an email and a password of at least 8 characters.');return;}
+    setState(()=>busy=true);
+    try {
+      final auth=Supabase.instance.client.auth;
+      if(registering){await auth.signUp(email:email.text.trim(),password:password.text);}
+      else {await auth.signInWithPassword(email:email.text.trim(),password:password.text);}
+      if(!mounted)return;
+      if(registering && auth.currentUser==null){_message(widget.fa?'لینک تأیید به ایمیل شما ارسال شد.':'A confirmation link was sent to your email.');}
+      else {Navigator.pop(context,true);}
+    } on AuthException catch(e){_message(e.message);} catch(_){_message(widget.fa?'اتصال برقرار نشد. تنظیمات Supabase را بررسی کنید.':'Connection failed. Check Supabase configuration.');}
+    finally{if(mounted)setState(()=>busy=false);}
+  }
+  void _message(String s)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s)));
+  @override Widget build(BuildContext context)=>Directionality(textDirection:widget.fa?TextDirection.rtl:TextDirection.ltr,child:Scaffold(appBar:AppBar(title:Text(widget.fa?'ورود به کاراکال':'CARACAL SIGN IN')),body:ListView(padding:const EdgeInsets.all(22),children:[const SizedBox(height:20),const Center(child:SizedBox(width:120,height:110,child:CustomPaint(painter:CaracalMarkPainter()))),const SizedBox(height:28),TextField(controller:email,keyboardType:TextInputType.emailAddress,decoration:InputDecoration(labelText:widget.fa?'ایمیل':'Email',prefixIcon:const Icon(Icons.email_outlined),filled:true,fillColor:panel,border:OutlineInputBorder(borderRadius:BorderRadius.circular(14)))),const SizedBox(height:14),TextField(controller:password,obscureText:true,decoration:InputDecoration(labelText:widget.fa?'رمز عبور (حداقل ۸ کاراکتر)':'Password (8+ characters)',prefixIcon:const Icon(Icons.lock_outline),filled:true,fillColor:panel,border:OutlineInputBorder(borderRadius:BorderRadius.circular(14)))),const SizedBox(height:20),FilledButton(onPressed:busy?null:submit,child:Padding(padding:const EdgeInsets.all(13),child:busy?const CircularProgressIndicator():Text(registering?(widget.fa?'ساخت حساب':'Create account'):(widget.fa?'ورود':'Sign in')))),TextButton(onPressed:busy?null:()=>setState(()=>registering=!registering),child:Text(registering?(widget.fa?'قبلاً حساب دارم؛ ورود':'I already have an account'):(widget.fa?'حساب ندارم؛ ثبت‌نام':'Create a new account')))])));
+}
+
+class OwnerAdminScreen extends StatefulWidget {
+  final bool fa;
+  const OwnerAdminScreen({super.key,required this.fa});
+  @override State<OwnerAdminScreen> createState()=>_OwnerAdminScreenState();
+}
+class _OwnerAdminScreenState extends State<OwnerAdminScreen> {
+  final email=TextEditingController(); bool busy=false; String? role; List<Map<String,dynamic>> users=[];
+  @override void initState(){super.initState();load();}
+  @override void dispose(){email.dispose();super.dispose();}
+  Future<void> load() async {
+    try {
+      final client=Supabase.instance.client; final uid=client.auth.currentUser!.id;
+      final mine=await client.from('user_roles').select('role').eq('user_id',uid).maybeSingle();
+      if(mounted)setState(()=>role=mine?['role'] as String?);
+      if(mine?['role']=='owner') {
+        final rows=await client.from('user_roles').select('email,role,permissions,created_at').order('created_at');
+        if(mounted)setState(()=>users=List<Map<String,dynamic>>.from(rows));
+      }
+    } catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(widget.fa?'جدول نقش‌ها آماده نیست؛ SQL راه‌اندازی را اجرا کنید.':'Role table is not ready. Run the setup SQL.')));}
+  }
+  Future<void> setAdmin(String nextRole) async {
+    if(email.text.trim().isEmpty)return;
+    setState(()=>busy=true);
+    try {await Supabase.instance.client.from('user_roles').update({'role':nextRole}).eq('email',email.text.trim());email.clear();await load();}
+    catch(_){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(widget.fa?'فقط مالک اجازه تغییر نقش دارد. ایمیل باید قبلاً ثبت‌نام کرده باشد.':'Only the owner can change roles. The email must belong to a registered user.')));}
+    finally{if(mounted)setState(()=>busy=false);}
+  }
+  Future<void> setContentPermission(String userEmail,bool enabled) async {
+    try {
+      await Supabase.instance.client.from('user_roles').update({'permissions':{'content':enabled,'members':false,'notifications':false}}).eq('email',userEmail);
+      await load();
+    } catch (_) { if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(widget.fa?'تغییر مجوز انجام نشد.':'Permission update failed.'))); }
+  }
+  @override Widget build(BuildContext context)=>Directionality(textDirection:widget.fa?TextDirection.rtl:TextDirection.ltr,child:Scaffold(appBar:AppBar(title:Text(widget.fa?'مدیریت کاراکال':'CARACAL ADMIN')),body:RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(18),children:[Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:panel,borderRadius:BorderRadius.circular(14)),child:Text('${widget.fa?'نقش فعلی':'Current role'}: ${role??(widget.fa?'در حال بررسی':'checking')}',style:const TextStyle(fontWeight:FontWeight.bold))),if(role=='owner'||role=='admin')Padding(padding:const EdgeInsets.only(top:12),child:FilledButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>ContentManagementScreen(fa:widget.fa))),icon:const Icon(Icons.library_add),label:Text(widget.fa?'مدیریت و انتشار آموزش‌ها':'Manage & publish lessons'))),if(role=='owner')... [const SizedBox(height:18),Text(widget.fa?'مدیریت ادمین‌ها':'ADMIN ACCESS',style:const TextStyle(fontWeight:FontWeight.w900,letterSpacing:1.5)),const SizedBox(height:10),TextField(controller:email,decoration:InputDecoration(labelText:widget.fa?'ایمیل کاربر ثبت‌نام‌شده':'Registered user email',filled:true,fillColor:panel,border:OutlineInputBorder(borderRadius:BorderRadius.circular(12)))),const SizedBox(height:8),Row(children:[Expanded(child:FilledButton(onPressed:busy?null:()=>setAdmin('admin'),child:Text(widget.fa?'اعطای دسترسی ادمین':'Make admin'))),const SizedBox(width:8),Expanded(child:OutlinedButton(onPressed:busy?null:()=>setAdmin('member'),child:Text(widget.fa?'لغو ادمین':'Revoke admin')))]),const Divider(height:30),Text(widget.fa?'کاربران و نقش‌ها':'USERS & ROLES',style:const TextStyle(fontWeight:FontWeight.bold)),...users.map((u)=>Column(children:[ListTile(leading:Icon(u['role']=='owner'?Icons.verified_user:Icons.person,color:u['role']=='owner'?accent:silver),title:Text('${u['email']??'—'}'),subtitle:Text('${u['role']}')),if(u['role']=='admin')SwitchListTile(value=(u['permissions'] is Map && (u['permissions']['content']==true)),onChanged:(v)=>setContentPermission('${u['email']}',v),title:Text(widget.fa?'مجوز مدیریت محتوا':'Content management permission'))]))] else Padding(padding:const EdgeInsets.only(top:20),child:Text(widget.fa?'این بخش فقط برای مالک اصلی فعال است. ادمین‌ها فقط بر اساس مجوزهای تعریف‌شده می‌توانند محتوا را مدیریت کنند.':'This area is reserved for the primary owner. Admins should receive only explicitly granted content permissions.',style:const TextStyle(color:Colors.white70,height:1.8)))]))));
+}
+
+
+class ContentManagementScreen extends StatefulWidget {
+  final bool fa;
+  const ContentManagementScreen({super.key,required this.fa});
+  @override State<ContentManagementScreen> createState()=>_ContentManagementScreenState();
+}
+class _ContentManagementScreenState extends State<ContentManagementScreen> {
+  final faTitle=TextEditingController(),enTitle=TextEditingController(),faBody=TextEditingController(),enBody=TextEditingController(),faSummary=TextEditingController(),enSummary=TextEditingController();
+  bool busy=false,allowed=false; List<Map<String,dynamic>> items=[];
+  @override void initState(){super.initState();load();}
+  @override void dispose(){faTitle.dispose();enTitle.dispose();faBody.dispose();enBody.dispose();faSummary.dispose();enSummary.dispose();super.dispose();}
+  Future<void> load() async {
+    final c=Supabase.instance.client; final uid=c.auth.currentUser!.id;
+    try {
+      final role=await c.from('user_roles').select('role,permissions').eq('user_id',uid).single();
+      final p=role['permissions']; final ok=role['role']=='owner'||(role['role']=='admin'&&p is Map&&p['content']==true);
+      final rows=ok?await c.from('lessons').select().order('created_at',ascending:false):<dynamic>[];
+      if(mounted)setState((){allowed=ok;items=List<Map<String,dynamic>>.from(rows);});
+    } catch(_){if(mounted)setState(()=>allowed=false);}
+  }
+  Future<void> save() async {
+    if(faTitle.text.trim().isEmpty||enTitle.text.trim().isEmpty||faBody.text.trim().isEmpty||enBody.text.trim().isEmpty)return;
+    setState(()=>busy=true);
+    try {
+      final c=Supabase.instance.client;
+      await c.from('lessons').insert({'title_fa':faTitle.text.trim(),'title_en':enTitle.text.trim(),'summary_fa':faSummary.text.trim(),'summary_en':enSummary.text.trim(),'body_fa':faBody.text.trim(),'body_en':enBody.text.trim(),'category':'general','is_published':true,'created_by':c.auth.currentUser!.id});
+      faTitle.clear();enTitle.clear();faBody.clear();enBody.clear();faSummary.clear();enSummary.clear();await load();
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(widget.fa?'آموزش منتشر شد.':'Lesson published.')));
+    } catch(_){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(widget.fa?'انتشار ناموفق بود؛ اتصال و مجوز را بررسی کنید.':'Publish failed. Check connection and permissions.')));}
+    finally{if(mounted)setState(()=>busy=false);}
+  }
+  Widget field(TextEditingController c,String label,{int lines=1})=>Padding(padding:const EdgeInsets.only(bottom:10),child:TextField(controller:c,maxLines:lines,decoration:InputDecoration(labelText:label,filled:true,fillColor:panel,border:OutlineInputBorder(borderRadius:BorderRadius.circular(12)))));
+  @override Widget build(BuildContext context)=>Directionality(textDirection:widget.fa?TextDirection.rtl:TextDirection.ltr,child:Scaffold(appBar:AppBar(title:Text(widget.fa?'مدیریت آموزش‌ها':'LESSON MANAGER')),body:!allowed?Center(child:Text(widget.fa?'مجوز مدیریت محتوا برای این حساب فعال نیست.':'This account does not have content-management permission.')):ListView(padding:const EdgeInsets.all(16),children:[Text(widget.fa?'آموزش جدید':'NEW LESSON',style:const TextStyle(fontWeight:FontWeight.w900,letterSpacing:1.4,fontSize:18)),const SizedBox(height:12),field(faTitle,'عنوان فارسی'),field(enTitle,'English title'),field(faSummary,'خلاصه فارسی'),field(enSummary,'English summary'),field(faBody,'متن کامل فارسی',lines:5),field(enBody,'Full English content',lines:5),FilledButton.icon(onPressed:busy?null:save,icon:const Icon(Icons.publish),label:Text(widget.fa?'انتشار آموزش':'Publish lesson')),const Divider(height:32),Text(widget.fa?'آموزش‌های منتشرشده':'PUBLISHED LESSONS',style:const TextStyle(fontWeight:FontWeight.bold)),...items.map((e)=>ListTile(leading:const Icon(Icons.menu_book,color:silver),title:Text('${e['title_fa']}'),subtitle:Text('${e['title_en']}')))])));
 }
 
 class LessonScreen extends StatelessWidget {
