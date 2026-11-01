@@ -247,7 +247,13 @@ class _IntroScreenState extends State<IntroScreen>
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: 270,
+                    height: 142,
+                    child: AnimatedGauge(redline: true, animations: true),
+                  ),
+                  const SizedBox(height: 8),
                   SizedBox(
                     width: 220,
                     height: 7,
@@ -626,19 +632,19 @@ class _AnimatedGaugeState extends State<AnimatedGauge>
     super.initState();
     controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2400),
+      duration: const Duration(milliseconds: 3200),
     );
 
     rpm = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween<double>(begin: 0.0, end: 6500.0)
+        tween: Tween<double>(begin: 500.0, end: 7900.0)
             .chain(CurveTween(curve: Curves.easeOutCubic)),
-        weight: 65,
+        weight: 72,
       ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: 6500.0, end: 2200.0)
+        tween: Tween<double>(begin: 7900.0, end: 850.0)
             .chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 35,
+        weight: 28,
       ),
     ]).animate(controller);
 
@@ -730,6 +736,21 @@ class GaugePainter extends CustomPainter {
       active,
     );
 
+    if (redline && value > 6500) {
+      final redGlow = Paint()
+        ..color = red.withOpacity(.28)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 23
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 13);
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        start + sweep * .78,
+        sweep * .22,
+        false,
+        redGlow,
+      );
+    }
+
     final tickPaint = Paint()
       ..color = silver
       ..strokeWidth = 2;
@@ -784,9 +805,9 @@ class GaugePainter extends CustomPainter {
         needleEnd,
         Paint()
           ..color = red.withOpacity(.4)
-          ..strokeWidth = 12
+          ..strokeWidth = 20
           ..strokeCap = StrokeCap.round
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 16),
       );
     }
 
