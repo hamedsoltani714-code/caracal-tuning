@@ -4,9 +4,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+const String supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+const String supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+bool supabaseConfigured = false;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
+    try {
+      await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
+      supabaseConfigured = true;
+    } catch (e) {
+      debugPrint('Supabase initialization failed: $e');
+    }
+  }
   runApp(const CaracalApp());
 }
 
@@ -248,10 +261,16 @@ class _IntroScreenState extends State<IntroScreen>
                     scale: .55 + v * .45,
                     child: Opacity(
                       opacity: v.clamp(0.0, 1.0),
-                      child: const SizedBox(
-                        width: 260,
-                        height: 210,
-                        child: CustomPaint(painter: CaracalPainter()),
+                      child: SizedBox(
+                        width: 250,
+                        height: 205,
+                        child: Image.asset(
+                          'assets/images/130315.png',
+                          fit: BoxFit.contain,
+                          alignment: Alignment.center,
+                          errorBuilder: (context, error, stack) =>
+                              const CustomPaint(painter: CaracalPainter()),
+                        ),
                       ),
                     ),
                   ),
@@ -381,10 +400,15 @@ class HomeScreen extends StatelessWidget {
       children: [
         Row(
           children: [
-            const SizedBox(
+            SizedBox(
               width: 58,
               height: 52,
-              child: CustomPaint(painter: CaracalPainter()),
+              child: Image.asset(
+                'assets/images/130315.png',
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stack) =>
+                    const CustomPaint(painter: CaracalPainter()),
+              ),
             ),
             const SizedBox(width: 12),
             const Expanded(
@@ -411,11 +435,25 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
             IconButton(
-              onPressed: () {},
-              icon: const Icon(
-                Icons.notifications_none,
-                color: silver,
+              tooltip: t('اعلان‌ها', 'Notifications'),
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (dialogContext) => AlertDialog(
+                  backgroundColor: panel,
+                  title: Text(t('مرکز اعلان‌ها', 'Notification Center')),
+                  content: Text(t(
+                    'فعلاً اعلان جدیدی وجود ندارد. اعلان‌های آموزشی و به‌روزرسانی‌ها در این بخش نمایش داده می‌شوند.',
+                    'There are no new notifications. Learning updates and app announcements will appear here.',
+                  )),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: Text(t('متوجه شدم', 'Got it')),
+                    ),
+                  ],
+                ),
               ),
+              icon: const Icon(Icons.notifications_none, color: silver),
             ),
           ],
         ),
@@ -521,6 +559,7 @@ class HomeScreen extends StatelessWidget {
             'آشنایی با پارامترهای اصلی موتور',
             'Understanding core engine parameters',
           ),
+          onTap: () => showLesson(context, english, 'Engine Architecture'),
         ),
         FeatureTile(
           icon: Icons.developer_board,
@@ -529,6 +568,7 @@ class HomeScreen extends StatelessWidget {
             'ساختار و وظایف واحد کنترل موتور',
             'Engine control unit architecture',
           ),
+          onTap: () => showLesson(context, english, 'ECU Fundamentals'),
         ),
         FeatureTile(
           icon: Icons.analytics,
@@ -537,6 +577,7 @@ class HomeScreen extends StatelessWidget {
             'شناخت داده‌ها و پارامترهای خودرو',
             'Understanding vehicle data',
           ),
+          onTap: () => showLesson(context, english, 'Parameter Analysis'),
         ),
       ],
     );
@@ -601,48 +642,54 @@ class FeatureTile extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
+  final VoidCallback? onTap;
 
   const FeatureTile({
     super.key,
     required this.icon,
     required this.title,
     required this.subtitle,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: panel,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: red, size: 27),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: Colors.white54,
-                    fontSize: 11,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: panel,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: red, size: 27),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const Icon(Icons.chevron_right, color: silver),
-        ],
+            const Icon(Icons.chevron_right, color: silver),
+          ],
+        ),
       ),
     );
   }
@@ -1103,6 +1150,94 @@ class CaracalPainter extends CustomPainter {
   bool shouldRepaint(covariant CaracalPainter oldDelegate) => false;
 }
 
+void showLesson(BuildContext context, bool english, String title) {
+  final Map<String, List<String>> lessons = {
+    'ECU Fundamentals': [
+      'واحد کنترل الکترونیکی (ECU) داده حسگرها را دریافت می‌کند و بر اساس نرم‌افزار و کالیبراسیون، عملگرهای موتور را مدیریت می‌کند.',
+      'بخش‌های اصلی شامل ورودی حسگرها، پردازنده، حافظه، مدارهای خروجی و شبکه ارتباطی خودرو هستند.',
+      'در بررسی ECU ابتدا کدهای خطا، داده زنده و شرایط ثبت خطا را با ابزار استاندارد بررسی کنید.'
+    ],
+    'Remapping Basics': [
+      'ریمپ یعنی بازنگری کنترل‌شده در کالیبراسیون ECU با توجه به سخت‌افزار، سوخت، شرایط کار و محدودیت‌های ایمنی موتور.',
+      'پیش از هر تغییر باید سلامت مکانیکی، خطاهای فعال و وضعیت حسگرها بررسی شود.',
+      'هر تغییر باید مستند، قابل بازگشت و با پایش دما، فشار و ناک ارزیابی شود.'
+    ],
+    'Ignition System': [
+      'سیستم جرقه وظیفه ایجاد جرقه در زمان مناسب برای احتراق مخلوط هوا و سوخت را دارد.',
+      'شمع، کوئل، سیم‌کشی و فرمان ECU از اجزای مهم این سامانه هستند.',
+      'عیب‌یابی باید با بررسی خطاها و آزمون‌های استاندارد انجام شود.'
+    ],
+    'Fuel System': [
+      'سامانه سوخت‌رسانی سوخت را با فشار و مقدار کنترل‌شده به موتور می‌رساند.',
+      'پمپ، فیلتر، ریل سوخت، انژکتورها و حسگرهای مرتبط از اجزای اصلی هستند.',
+      'فشار و ترکیب سوخت باید مطابق مشخصات سازنده بررسی شود.'
+    ],
+    'Parameter Analysis': [
+      'داده زنده کمک می‌کند وضعیت موتور در شرایط واقعی کار بررسی شود.',
+      'پارامترهایی مانند دمای آب، دمای هوای ورودی، فشار منیفولد، اصلاح سوخت و دور موتور باید در کنار هم تحلیل شوند.',
+      'مقادیر را با مشخصات سازنده و شرایط ثبت داده مقایسه کنید؛ یک عدد به‌تنهایی نتیجه قطعی نمی‌دهد.'
+    ],
+    'Vehicle Diagnostics': [
+      'عیب‌یابی اصولی با ثبت شکایت، بررسی ظاهری و خواندن کدهای خطا آغاز می‌شود.',
+      'کد خطا سرنخ است و لزوماً به معنی خرابی قطعه‌ای که نام برده شده نیست.',
+      'پس از آزمون علت ریشه‌ای، تعمیر و پاک‌کردن خطا، نتیجه باید دوباره بررسی شود.'
+    ],
+    'Engine Architecture': [
+      'موتور از سامانه‌های مکانیکی، روانکاری، خنک‌کاری، هوا و سوخت و کنترل الکترونیکی تشکیل شده است.',
+      'شناخت ارتباط این سامانه‌ها برای تحلیل عملکرد و عیب‌یابی ضروری است.',
+      'همیشه مشخصات فنی همان کد موتور و دستورالعمل سازنده را مرجع قرار دهید.'
+    ],
+    'Engine Maps Basics': [
+      'جداول کالیبراسیون رابطه ورودی‌هایی مانند دور موتور و بار را با یک فرمان یا هدف کنترلی مشخص می‌کنند.',
+      'برای خواندن جدول باید محور‌ها، واحدها، مقیاس داده و شرایط فعال‌سازی آن را شناخت.',
+      'تغییر جدول بدون شناخت منطق کنترلی و اعتبارسنجی می‌تواند به موتور آسیب بزند؛ آموزش و آزمون باید در محیط کنترل‌شده انجام شود.'
+    ],
+  };
+  final points = lessons[title] ?? ['محتوای این درس به‌زودی تکمیل می‌شود.'];
+  showDialog<void>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: panel,
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (int i = 0; i < points.length; i++) ...[
+                Text('${i + 1}. ${english ? _lessonEnglish(title, i) : points[i]}',
+                    style: const TextStyle(height: 1.7, color: silver)),
+                const SizedBox(height: 12),
+              ],
+              Text(english
+                  ? 'Educational overview only. Follow manufacturer service data and qualified procedures.'
+                  : 'این محتوا آموزشی است؛ برای تعمیر و تنظیم عملی از اطلاعات سازنده و روش‌های تخصصی معتبر استفاده کنید.',
+                  style: const TextStyle(fontSize: 11, color: Colors.white54)),
+            ],
+          ),
+        ),
+      ),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(english ? 'Close' : 'بستن'))],
+    ),
+  );
+}
+
+String _lessonEnglish(String title, int index) {
+  const data = {
+    'ECU Fundamentals': ['The ECU receives sensor data and manages engine actuators using its software and calibration.', 'Main sections include sensor inputs, processor, memory, output drivers and vehicle communication networks.', 'Begin diagnosis by checking fault codes, live data and the conditions in which the fault was recorded.'],
+    'Remapping Basics': ['Remapping is a controlled review of ECU calibration based on hardware, fuel, operating conditions and engine safety limits.', 'Before changes, verify mechanical health, active faults and sensor condition.', 'Document every change, keep a recovery path and validate while monitoring temperature, pressure and knock.'],
+    'Ignition System': ['The ignition system creates a spark at the correct time to ignite the air-fuel mixture.', 'Spark plugs, coils, wiring and ECU commands are key components.', 'Use standard tests and fault data when diagnosing the system.'],
+    'Fuel System': ['The fuel system delivers a controlled amount of fuel at the required pressure.', 'The pump, filter, rail, injectors and related sensors are key components.', 'Check pressure and fuel quality against manufacturer specifications.'],
+    'Parameter Analysis': ['Live data helps evaluate engine operation under real conditions.', 'Coolant temperature, intake air temperature, manifold pressure, fuel trims and RPM should be considered together.', 'Compare readings with manufacturer specifications and recording conditions; one value alone is not conclusive.'],
+    'Vehicle Diagnostics': ['A sound diagnostic process begins with the reported symptom, a visual check and fault-code retrieval.', 'A fault code is a clue, not proof that the named component has failed.', 'After identifying the root cause and repair, verify the result again.'],
+    'Engine Architecture': ['An engine combines mechanical, lubrication, cooling, air, fuel and electronic control systems.', 'Understanding how these systems interact is essential for performance analysis and diagnosis.', 'Use specifications for the exact engine code and manufacturer procedures.'],
+    'Engine Maps Basics': ['Calibration maps relate inputs such as engine speed and load to a control command or target.', 'To interpret a map, identify its axes, units, data scaling and activation conditions.', 'Changing a map without understanding control logic and validation can damage an engine.'],
+  };
+  return (data[title] ?? ['This lesson will be expanded soon.'])[index];
+}
+
 // LEARN
 
 class LearnScreen extends StatelessWidget {
@@ -1153,7 +1288,12 @@ class LearnScreen extends StatelessWidget {
             title: t(item[1] as String, item[2] as String),
             subtitle: t(
               'برای مشاهده و یادگیری انتخاب کنید',
-              'Select to explore this topic',
+              'Tap to open this lesson',
+            ),
+            onTap: () => showLesson(
+              context,
+              english,
+              item[2] as String,
             ),
           ),
       ],
@@ -1161,89 +1301,225 @@ class LearnScreen extends StatelessWidget {
   }
 }
 
-// GARAGE
+// GARAGE / ACCOUNT / ADMIN
 
-class GarageScreen extends StatelessWidget {
+class GarageScreen extends StatefulWidget {
   final bool english;
-
   const GarageScreen({super.key, required this.english});
 
   @override
+  State<GarageScreen> createState() => _GarageScreenState();
+}
+
+class _GarageScreenState extends State<GarageScreen> {
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+  final vehicleController = TextEditingController();
+  bool busy = false;
+  bool signUp = false;
+  String? error;
+  List<Map<String, dynamic>> vehicles = [];
+  Map<String, dynamic>? profile;
+
+  bool get en => widget.english;
+  String t(String fa, String english) => en ? english : fa;
+  bool get configured => supabaseConfigured;
+  SupabaseClient get client => Supabase.instance.client;
+
+  @override
+  void initState() {
+    super.initState();
+    if (configured && client.auth.currentUser != null) loadAccount();
+  }
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    vehicleController.dispose();
+    super.dispose();
+  }
+
+  Future<void> runBusy(Future<void> Function() action) async {
+    setState(() { busy = true; error = null; });
+    try { await action(); }
+    catch (e) { if (mounted) setState(() => error = e.toString()); }
+    finally { if (mounted) setState(() => busy = false); }
+  }
+
+  Future<void> authenticate() => runBusy(() async {
+    final email = emailController.text.trim();
+    final password = passwordController.text;
+    if (email.isEmpty || password.length < 6) {
+      throw Exception(t('ایمیل و گذرواژه حداقل ۶ کاراکتری را وارد کن.', 'Enter an email and a password of at least 6 characters.'));
+    }
+    if (signUp) {
+      await client.auth.signUp(email: email, password: password);
+    } else {
+      await client.auth.signInWithPassword(email: email, password: password);
+    }
+    await loadAccount();
+  });
+
+  Future<void> loadAccount() async {
+    final user = client.auth.currentUser;
+    if (user == null) return;
+    final p = await client.from('profiles').select().eq('id', user.id).maybeSingle();
+    final v = await client.from('vehicles').select().eq('user_id', user.id).order('created_at', ascending: false);
+    if (!mounted) return;
+    setState(() {
+      profile = p;
+      vehicles = List<Map<String, dynamic>>.from(v);
+    });
+  }
+
+  Future<void> addVehicle() async {
+    final name = vehicleController.text.trim();
+    if (name.isEmpty) return;
+    await runBusy(() async {
+      await client.from('vehicles').insert({'name': name});
+      vehicleController.clear();
+      await loadAccount();
+    });
+  }
+
+  Future<void> signOut() async {
+    await runBusy(() async {
+      await client.auth.signOut();
+      if (mounted) setState(() { profile = null; vehicles = []; });
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Padding(
+    return ListView(
       padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            english ? 'MY GARAGE' : 'گاراژ من',
-            style: const TextStyle(
-              fontSize: 23,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 20),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(22),
-            decoration: BoxDecoration(
-              color: panel,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: Colors.white10),
-            ),
-            child: Column(
-              children: [
-                const Icon(
-                  Icons.directions_car_filled,
-                  size: 65,
-                  color: silver,
-                ),
-                const SizedBox(height: 15),
-                Text(
-                  english
-                      ? 'Your garage is ready'
-                      : 'گاراژ شما آماده است',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 17,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  english
-                      ? 'Vehicle management will be available after account integration.'
-                      : 'مدیریت خودروها پس از اتصال حساب کاربری فعال می‌شود.',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white54,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 18),
-                FilledButton.icon(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          english
-                              ? 'Account setup is required.'
-                              : 'ثبت خودرو به راه‌اندازی حساب نیاز دارد.',
-                        ),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.add),
-                  label: Text(
-                    english ? 'ADD VEHICLE' : 'افزودن خودرو',
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+      children: [
+        Text(t('گاراژ و حساب کاربری', 'GARAGE & ACCOUNT'), style: const TextStyle(fontSize: 23, fontWeight: FontWeight.w900)),
+        const SizedBox(height: 18),
+        if (!configured) _configurationNotice() else if (client.auth.currentUser == null) _authCard() else _accountCard(),
+        if (error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(error!, style: const TextStyle(color: Colors.redAccent))),
+        if (busy) const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator(color: red))),
+      ],
     );
   }
+
+  Widget _configurationNotice() => _card(Column(children: [
+    const Icon(Icons.cloud_off, color: silver, size: 48),
+    const SizedBox(height: 12),
+    Text(t('اتصال سرور هنوز تنظیم نشده', 'Backend is not configured'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+    const SizedBox(height: 8),
+    Text(t('برای فعال شدن ورود، گاراژ آنلاین و مدیریت مدیران، آدرس پروژه و کلید عمومی Supabase باید هنگام بیلد تنظیم شود.', 'Set the Supabase project URL and public anon key at build time to enable authentication, cloud garage and admin management.'), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white60, fontSize: 12)),
+  ]));
+
+  Widget _authCard() => _card(Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+    const Icon(Icons.account_circle_outlined, color: silver, size: 54),
+    const SizedBox(height: 12),
+    Text(signUp ? t('ساخت حساب کاربری', 'Create account') : t('ورود به کاراکال', 'Sign in to CARACAL'), textAlign: TextAlign.center, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+    const SizedBox(height: 16),
+    TextField(controller: emailController, keyboardType: TextInputType.emailAddress, decoration: InputDecoration(labelText: t('ایمیل', 'Email'), border: const OutlineInputBorder())),
+    const SizedBox(height: 12),
+    TextField(controller: passwordController, obscureText: true, decoration: InputDecoration(labelText: t('گذرواژه (حداقل ۶ کاراکتر)', 'Password (6+ characters)'), border: const OutlineInputBorder())),
+    const SizedBox(height: 14),
+    FilledButton(onPressed: busy ? null : authenticate, child: Text(signUp ? t('ثبت‌نام', 'CREATE ACCOUNT') : t('ورود', 'SIGN IN'))),
+    TextButton(onPressed: busy ? null : () => setState(() { signUp = !signUp; error = null; }), child: Text(signUp ? t('قبلاً حساب دارم؛ ورود', 'I already have an account') : t('حساب ندارم؛ ثبت‌نام', 'Create a new account'))),
+  ]));
+
+  Widget _accountCard() {
+    final user = client.auth.currentUser!;
+    final role = profile?['role']?.toString() ?? 'user';
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      _card(Column(children: [
+        const Icon(Icons.verified_user_outlined, size: 48, color: silver),
+        const SizedBox(height: 8),
+        Text(user.email ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 5),
+        Text(t('سطح دسترسی: ', 'Role: ') + role.toUpperCase(), style: const TextStyle(color: red, fontSize: 12, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        if (role == 'owner' || role == 'admin') SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CaracalAdminScreen(english: en, isOwner: role == 'owner'))), icon: const Icon(Icons.admin_panel_settings), label: Text(t('پنل مدیریت', 'ADMIN PANEL')))),
+        SizedBox(width: double.infinity, child: TextButton.icon(onPressed: signOut, icon: const Icon(Icons.logout), label: Text(t('خروج از حساب', 'SIGN OUT'))),
+      ])),
+      const SizedBox(height: 18),
+      Text(t('خودروهای من', 'MY VEHICLES'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+      const SizedBox(height: 10),
+      _card(Column(children: [
+        TextField(controller: vehicleController, decoration: InputDecoration(labelText: t('نام خودرو (مثلاً پژو ۲۰۶)', 'Vehicle name (e.g. Peugeot 206)'), border: const OutlineInputBorder(), suffixIcon: IconButton(onPressed: busy ? null : addVehicle, icon: const Icon(Icons.add, color: red)))),
+        const SizedBox(height: 8),
+        if (vehicles.isEmpty) Text(t('هنوز خودرویی ثبت نکرده‌ای.', 'No vehicles added yet.'), style: const TextStyle(color: Colors.white54)) else ...vehicles.map((v) => ListTile(leading: const Icon(Icons.directions_car, color: silver), title: Text(v['name']?.toString() ?? ''), trailing: IconButton(icon: const Icon(Icons.delete_outline, color: Colors.redAccent), onPressed: () => runBusy(() async { await client.from('vehicles').delete().eq('id', v['id']); await loadAccount(); })))),
+      ])),
+    ]);
+  }
+
+  Widget _card(Widget child) => Container(padding: const EdgeInsets.all(18), decoration: BoxDecoration(color: panel, borderRadius: BorderRadius.circular(18), border: Border.all(color: Colors.white10)), child: child);
+}
+
+class CaracalAdminScreen extends StatefulWidget {
+  final bool english;
+  final bool isOwner;
+  const CaracalAdminScreen({super.key, required this.english, required this.isOwner});
+  @override
+  State<CaracalAdminScreen> createState() => _CaracalAdminScreenState();
+}
+
+class _CaracalAdminScreenState extends State<CaracalAdminScreen> {
+  bool loading = true;
+  String? message;
+  List<Map<String, dynamic>> users = [];
+  final email = TextEditingController();
+  bool manageContent = true;
+  bool publishContent = false;
+  bool manageUsers = false;
+  SupabaseClient get client => Supabase.instance.client;
+  String t(String fa, String en) => widget.english ? en : fa;
+
+  @override
+  void initState() { super.initState(); load(); }
+  @override
+  void dispose() { email.dispose(); super.dispose(); }
+
+  Future<void> load() async {
+    try {
+      final rows = await client.from('profiles').select('id,email,role,permissions,created_at').order('created_at', ascending: false);
+      if (mounted) setState(() { users = List<Map<String, dynamic>>.from(rows); loading = false; });
+    } catch (e) { if (mounted) setState(() { message = e.toString(); loading = false; }); }
+  }
+
+  Future<void> createAdmin() async {
+    final address = email.text.trim();
+    if (address.isEmpty || !address.contains('@')) { setState(() => message = t('ایمیل معتبر وارد کن.', 'Enter a valid email.')); return; }
+    setState(() { loading = true; message = null; });
+    try {
+      final response = await client.functions.invoke('create-admin', body: {'email': address, 'permissions': {'manage_content': manageContent, 'publish_content': publishContent, 'manage_users': manageUsers}});
+      if (response.status < 200 || response.status >= 300) throw Exception(response.data.toString());
+      email.clear();
+      message = t('دعوت‌نامه مدیر ارسال شد.', 'Admin invitation sent.');
+      await load();
+    } catch (e) { if (mounted) setState(() { message = e.toString(); loading = false; }); }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: bg,
+    appBar: AppBar(backgroundColor: bg, title: Text(t('پنل مدیریت کاراکال', 'CARACAL ADMIN'))),
+    body: ListView(padding: const EdgeInsets.all(18), children: [
+      if (widget.isOwner) Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: red.withOpacity(.12), borderRadius: BorderRadius.circular(12), border: Border.all(color: red.withOpacity(.4))), child: Text(t('حساب مالک اصلی: اختیار نهایی مدیریت مدیران و دسترسی‌ها فقط با مالک است.', 'Owner account: only the owner has final authority over administrators and permissions.'), style: const TextStyle(fontSize: 12))),
+      if (widget.isOwner) const SizedBox(height: 14),
+      if (widget.isOwner) Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: panel, borderRadius: BorderRadius.circular(14)), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Text(t('افزودن مدیر جدید', 'INVITE NEW ADMIN'), style: const TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: InputDecoration(labelText: t('ایمیل مدیر', 'Admin email'), border: const OutlineInputBorder())),
+        CheckboxListTile(contentPadding: EdgeInsets.zero, value: manageContent, onChanged: (v) => setState(() => manageContent = v ?? false), title: Text(t('مدیریت محتوا', 'Manage content'))),
+        CheckboxListTile(contentPadding: EdgeInsets.zero, value: publishContent, onChanged: (v) => setState(() => publishContent = v ?? false), title: Text(t('انتشار محتوا', 'Publish content'))),
+        CheckboxListTile(contentPadding: EdgeInsets.zero, value: manageUsers, onChanged: (v) => setState(() => manageUsers = v ?? false), title: Text(t('مدیریت کاربران', 'Manage users'))),
+        FilledButton(onPressed: loading ? null : createAdmin, child: Text(t('ارسال دعوت‌نامه', 'SEND INVITATION'))),
+      ])),
+      const SizedBox(height: 18),
+      Text(t('کاربران و مدیران', 'USERS & ADMINS'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+      if (loading) const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: red))),
+      ...users.map((u) => Card(color: panel, child: ListTile(leading: Icon(u['role'] == 'owner' ? Icons.shield : u['role'] == 'admin' ? Icons.admin_panel_settings : Icons.person, color: u['role'] == 'owner' ? red : silver), title: Text(u['email']?.toString() ?? u['id'].toString()), subtitle: Text((u['role'] ?? 'user').toString().toUpperCase() + (u['role'] == 'admin' ? ' • ${(u['permissions'] as Map? ?? {}).entries.where((e) => e.value == true).map((e) => e.key).join(', ')}' : ''))))),
+      if (message != null) Padding(padding: const EdgeInsets.all(12), child: Text(message!, style: const TextStyle(color: silver))),
+    ]),
+  );
 }
 
 // SETTINGS
@@ -1373,51 +1649,3 @@ class SettingsScreen extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-
-  Widget section(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8, top: 8),
-      child: Text(
-        title,
-        style: const TextStyle(
-          color: red,
-          fontSize: 11,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 1,
-        ),
-      ),
-    );
-  }
-
-  Widget settingSwitch(
-    String title,
-    String subtitle,
-    bool value,
-    ValueChanged<bool> onChanged,
-    IconData icon,
-  ) {
-    return SwitchListTile(
-      contentPadding: EdgeInsets.zero,
-      secondary: Icon(icon, color: silver),
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: const TextStyle(
-          fontSize: 10,
-          color: Colors.white54,
-        ),
-      ),
-      value: value,
-      activeColor: red,
-      onChanged: onChanged,
-    );
-  }
-}
