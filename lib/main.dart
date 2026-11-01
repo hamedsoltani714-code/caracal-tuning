@@ -1,370 +1,278 @@
 import 'dart:async';
 import 'dart:math' as math;
-
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
-const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
-const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
-
-const Color bg = Color(0xFF08090B);
-const Color panel = Color(0xFF17191D);
-const Color silver = Color(0xFFD0D3D6);
-const Color muted = Color(0xFF858B91);
-const Color red = Color(0xFFE13B35);
-
-bool get backendReady =>
-    supabaseUrl.startsWith('https://') && supabaseAnonKey.isNotEmpty;
-
-Future<void> main() async {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  if (backendReady) {
-    await Supabase.initialize(
-      url: supabaseUrl,
-      anonKey: supabaseAnonKey,
-    );
-  }
-
   runApp(const CaracalApp());
 }
 
-class CaracalApp extends StatelessWidget {
+const Color bg = Color(0xFF08090B);
+const Color panel = Color(0xFF15171B);
+const Color silver = Color(0xFFC5CBD2);
+const Color red = Color(0xFFFF3038);
+
+class CaracalApp extends StatefulWidget {
   const CaracalApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'CARACAL TUNING',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: bg,
-        colorScheme: const ColorScheme.dark(
-          primary: silver,
-          secondary: red,
-        ),
-        useMaterial3: true,
-      ),
-      home: const SplashScreen(),
-    );
-  }
+  State<CaracalApp> createState() => _CaracalAppState();
 }
 
-class CaracalLogo extends StatelessWidget {
-  const CaracalLogo({super.key, this.size = 100});
-
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: size,
-      height: size,
-      child: CustomPaint(
-        painter: CaracalPainter(),
-      ),
-    );
-  }
-}
-
-class CaracalPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final p = Paint()
-      ..color = silver
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4
-      ..strokeJoin = StrokeJoin.round;
-
-    final head = Path()
-      ..moveTo(size.width * .17, size.height * .40)
-      ..lineTo(size.width * .08, size.height * .04)
-      ..lineTo(size.width * .37, size.height * .23)
-      ..quadraticBezierTo(
-        size.width * .5,
-        size.height * .13,
-        size.width * .63,
-        size.height * .23,
-      )
-      ..lineTo(size.width * .92, size.height * .04)
-      ..lineTo(size.width * .83, size.height * .40)
-      ..quadraticBezierTo(
-        size.width * .96,
-        size.height * .82,
-        size.width * .5,
-        size.height * .95,
-      )
-      ..quadraticBezierTo(
-        size.width * .04,
-        size.height * .82,
-        size.width * .17,
-        size.height * .40,
-      );
-
-    canvas.drawPath(head, p);
-
-    final eye = Paint()..color = red;
-
-    canvas.drawPath(
-      Path()
-        ..moveTo(size.width * .24, size.height * .48)
-        ..lineTo(size.width * .43, size.height * .54)
-        ..lineTo(size.width * .32, size.height * .61)
-        ..close(),
-      eye,
-    );
-
-    canvas.drawPath(
-      Path()
-        ..moveTo(size.width * .76, size.height * .48)
-        ..lineTo(size.width * .57, size.height * .54)
-        ..lineTo(size.width * .68, size.height * .61)
-        ..close(),
-      eye,
-    );
-
-    final nose = Path()
-      ..moveTo(size.width * .43, size.height * .70)
-      ..quadraticBezierTo(
-        size.width * .5,
-        size.height * .64,
-        size.width * .57,
-        size.height * .70,
-      )
-      ..lineTo(size.width * .5, size.height * .79)
-      ..close();
-
-    canvas.drawPath(nose, Paint()..color = silver);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class GaugePainter extends CustomPainter {
-  const GaugePainter(this.value);
-
-  final double value;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height * .88);
-    final radius = size.width * .39;
-    final rect = Rect.fromCircle(center: center, radius: radius);
-
-    canvas.drawArc(
-      rect,
-      math.pi,
-      math.pi,
-      false,
-      Paint()
-        ..color = Colors.white12
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 12,
-    );
-
-    canvas.drawArc(
-      rect,
-      math.pi,
-      math.pi * value.clamp(0.0, 1.0),
-      false,
-      Paint()
-        ..color = red
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 12
-        ..strokeCap = StrokeCap.round,
-    );
-
-    for (int i = 0; i <= 20; i++) {
-      final angle = math.pi + math.pi * i / 20;
-      final outer = radius;
-      final inner = radius - (i.isEven ? 18 : 10);
-
-      canvas.drawLine(
-        Offset(
-          center.dx + outer * math.cos(angle),
-          center.dy + outer * math.sin(angle),
-        ),
-        Offset(
-          center.dx + inner * math.cos(angle),
-          center.dy + inner * math.sin(angle),
-        ),
-        Paint()
-          ..color = i >= 16 ? red : silver
-          ..strokeWidth = i.isEven ? 2 : 1,
-      );
-    }
-
-    final angle = math.pi + math.pi * value.clamp(0.0, 1.0);
-
-    canvas.drawLine(
-      center,
-      Offset(
-        center.dx + (radius - 25) * math.cos(angle),
-        center.dy + (radius - 25) * math.sin(angle),
-      ),
-      Paint()
-        ..color = Colors.white
-        ..strokeWidth = 3
-        ..strokeCap = StrokeCap.round,
-    );
-
-    canvas.drawCircle(center, 7, Paint()..color = red);
-  }
-
-  @override
-  bool shouldRepaint(covariant GaugePainter oldDelegate) {
-    return oldDelegate.value != value;
-  }
-}
-
-class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
-
-  @override
-  State<SplashScreen> createState() => _SplashScreenState();
-}
-
-class _SplashScreenState extends State<SplashScreen>
-    with TickerProviderStateMixin {
-  late final AnimationController rev = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 3200),
-  );
-
-  late final AnimationController pulse = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 900),
-  )..repeat(reverse: true);
-
-  final AudioPlayer player = AudioPlayer();
+class _CaracalAppState extends State<CaracalApp> {
+  bool english = false;
+  bool haptics = true;
+  bool redline = true;
+  bool animations = true;
+  bool engineSound = true;
+  bool compact = false;
+  int selectedTab = 0;
+  bool ready = false;
 
   @override
   void initState() {
     super.initState();
-    rev.forward();
-    playIntroSound();
-
-    Timer(const Duration(milliseconds: 4300), () {
-      if (!mounted) return;
-
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => const MainScreen(),
-        ),
-      );
+    _loadSettings();
+    Future.delayed(const Duration(milliseconds: 3200), () {
+      if (mounted) setState(() => ready = true);
     });
   }
 
-  Future<void> playIntroSound() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final enabled = prefs.getBool('caracal_sound_enabled') ?? true;
+  Future<void> _loadSettings() async {
+    final p = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      english = p.getBool('english') ?? false;
+      haptics = p.getBool('haptics') ?? true;
+      redline = p.getBool('redline') ?? true;
+      animations = p.getBool('animations') ?? true;
+      engineSound = p.getBool('engineSound') ?? true;
+      compact = p.getBool('compact') ?? false;
+    });
+  }
 
-      if (enabled) {
-        await player.setVolume(.75);
-        await player.play(
-          UrlSource('https://sfxmint.com/dl/car-revving-06.mp3'),
-        );
-      }
-    } catch (_) {}
+  Future<void> save(String key, bool value) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setBool(key, value);
+  }
+
+  String t(String fa, String en) => english ? en : fa;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'CARACAL TUNING',
+      theme: ThemeData(
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: bg,
+        colorScheme: const ColorScheme.dark(
+          primary: red,
+          surface: panel,
+        ),
+        fontFamily: 'Roboto',
+        useMaterial3: true,
+      ),
+      home: ready ? _mainScreen() : const IntroScreen(),
+    );
+  }
+
+  Widget _mainScreen() {
+    final pages = [
+      HomeScreen(
+        english: english,
+        compact: compact,
+        redline: redline,
+        animations: animations,
+        onNavigate: (i) => setState(() => selectedTab = i),
+      ),
+      LearnScreen(english: english),
+      GarageScreen(english: english),
+      SettingsScreen(
+        english: english,
+        haptics: haptics,
+        redline: redline,
+        animations: animations,
+        engineSound: engineSound,
+        compact: compact,
+        onChange: (key, value) async {
+          await save(key, value);
+          setState(() {
+            switch (key) {
+              case 'english':
+                english = value;
+                break;
+              case 'haptics':
+                haptics = value;
+                break;
+              case 'redline':
+                redline = value;
+                break;
+              case 'animations':
+                animations = value;
+                break;
+              case 'engineSound':
+                engineSound = value;
+                break;
+              case 'compact':
+                compact = value;
+                break;
+            }
+          });
+        },
+      ),
+    ];
+
+    return Directionality(
+      textDirection: english ? TextDirection.ltr : TextDirection.rtl,
+      child: Scaffold(
+        body: SafeArea(
+          child: IndexedStack(
+            index: selectedTab,
+            children: pages,
+          ),
+        ),
+        bottomNavigationBar: NavigationBar(
+          backgroundColor: const Color(0xFF101114),
+          indicatorColor: red.withOpacity(.18),
+          selectedIndex: selectedTab,
+          onDestinationSelected: (i) {
+            if (haptics) HapticFeedback.selectionClick();
+            setState(() => selectedTab = i);
+          },
+          destinations: [
+            NavigationDestination(
+              icon: const Icon(Icons.dashboard_outlined),
+              selectedIcon: const Icon(Icons.dashboard, color: red),
+              label: t('خانه', 'Home'),
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.school_outlined),
+              selectedIcon: const Icon(Icons.school, color: red),
+              label: t('آموزش', 'Learn'),
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.directions_car_outlined),
+              selectedIcon: const Icon(Icons.directions_car, color: red),
+              label: t('گاراژ', 'Garage'),
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.tune_outlined),
+              selectedIcon: const Icon(Icons.tune, color: red),
+              label: t('تنظیمات', 'Control'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------- INTRO ----------------
+
+class IntroScreen extends StatefulWidget {
+  const IntroScreen({super.key});
+
+  @override
+  State<IntroScreen> createState() => _IntroScreenState();
+}
+
+class _IntroScreenState extends State<IntroScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2600),
+    )..forward();
   }
 
   @override
   void dispose() {
-    player.dispose();
-    rev.dispose();
-    pulse.dispose();
+    controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       body: AnimatedBuilder(
-        animation: Listenable.merge([rev, pulse]),
+        animation: controller,
         builder: (context, child) {
-          return Container(
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: RadialGradient(
-                colors: [
-                  Color(0xFF30343A),
-                  Color(0xFF111316),
-                  Colors.black,
-                ],
+          final v = Curves.easeOutCubic.transform(controller.value);
+          return Stack(
+            alignment: Alignment.center,
+            children: [
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: IntroLinesPainter(progress: v),
+                ),
               ),
-            ),
-            child: SafeArea(
-              child: Column(
+              Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Spacer(),
                   Transform.scale(
-                    scale: .95 + pulse.value * .05,
-                    child: const CaracalLogo(size: 175),
+                    scale: .65 + v * .35,
+                    child: Opacity(
+                      opacity: v.clamp(0, 1),
+                      child: const SizedBox(
+                        width: 230,
+                        height: 190,
+                        child: CustomPaint(painter: CaracalPainter()),
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 15),
-                  const Text(
+                  const SizedBox(height: 20),
+                  Text(
                     'CARACAL',
                     style: TextStyle(
-                      fontSize: 34,
-                      letterSpacing: 8,
+                      fontSize: 37,
                       fontWeight: FontWeight.w900,
+                      letterSpacing: 7,
+                      color: silver.withOpacity(v),
                     ),
                   ),
                   const Text(
                     'T U N I N G',
                     style: TextStyle(
-                      color: silver,
-                      letterSpacing: 7,
-                      fontSize: 13,
+                      fontSize: 15,
+                      letterSpacing: 8,
+                      color: red,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: 220,
+                    height: 7,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: LinearProgressIndicator(
+                        value: v,
+                        backgroundColor: Colors.white12,
+                        valueColor:
+                            const AlwaysStoppedAnimation<Color>(red),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
                   const Text(
                     'DRIVE • LEARN • UPGRADE',
                     style: TextStyle(
-                      color: muted,
+                      color: Colors.white54,
                       fontSize: 10,
                       letterSpacing: 2,
                     ),
                   ),
-                  const SizedBox(height: 45),
-                  SizedBox(
-                    width: 290,
-                    height: 150,
-                    child: CustomPaint(
-                      painter: GaugePainter(rev.value),
-                    ),
-                  ),
-                  Text(
-                    '${(rev.value * 8500).round()} RPM',
-                    style: const TextStyle(
-                      color: silver,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 3,
-                    ),
-                  ),
-                  const Spacer(),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 35),
-                    child: SizedBox(
-                      width: 150,
-                      child: LinearProgressIndicator(
-                        value: rev.value,
-                        color: red,
-                        backgroundColor: Colors.white12,
-                        minHeight: 3,
-                      ),
-                    ),
-                  ),
                 ],
               ),
-            ),
+            ],
           );
         },
       ),
@@ -372,292 +280,143 @@ class _SplashScreenState extends State<SplashScreen>
   }
 }
 
-class Lesson {
-  const Lesson({
-    required this.fa,
-    required this.en,
-    required this.summary,
-    required this.bodyFa,
-    required this.bodyEn,
-    required this.icon,
+class IntroLinesPainter extends CustomPainter {
+  final double progress;
+  IntroLinesPainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = Paint()
+      ..color = red.withOpacity(.12)
+      ..strokeWidth = 1;
+
+    for (int i = 0; i < 12; i++) {
+      final y = size.height * (i / 12);
+      canvas.drawLine(
+        Offset(0, y + progress * 30),
+        Offset(size.width, y - progress * 30),
+        p,
+      );
+    }
+
+    final glow = Paint()
+      ..shader = RadialGradient(
+        colors: [red.withOpacity(.15), Colors.transparent],
+      ).createShader(
+        Rect.fromCircle(
+          center: Offset(size.width / 2, size.height / 2),
+          radius: size.width * .7,
+        ),
+      );
+
+    canvas.drawRect(Offset.zero & size, glow);
+  }
+
+  @override
+  bool shouldRepaint(covariant IntroLinesPainter oldDelegate) => true;
+}
+
+// ---------------- HOME ----------------
+
+class HomeScreen extends StatelessWidget {
+  final bool english;
+  final bool compact;
+  final bool redline;
+  final bool animations;
+  final ValueChanged<int> onNavigate;
+
+  const HomeScreen({
+    super.key,
+    required this.english,
+    required this.compact,
+    required this.redline,
+    required this.animations,
+    required this.onNavigate,
   });
 
-  final String fa;
-  final String en;
-  final String summary;
-  final String bodyFa;
-  final String bodyEn;
-  final IconData icon;
-}
-
-const List<Lesson> localLessons = [
-  Lesson(
-    fa: 'آشنایی با ECU',
-    en: 'Understanding ECU',
-    summary: 'مبانی کامپیوتر خودرو',
-    bodyFa:
-        'ECU واحد کنترل الکترونیکی خودرو است. این واحد اطلاعات حسگرها را دریافت و پردازش می‌کند و بر اساس راهبردهای سازنده، سامانه‌های مختلف خودرو را کنترل می‌کند.',
-    bodyEn:
-        'An ECU is an electronic control unit. It receives sensor information and controls vehicle systems according to manufacturer strategies.',
-    icon: Icons.memory,
-  ),
-  Lesson(
-    fa: 'مبانی سنسورها',
-    en: 'Sensor Basics',
-    summary: 'نقش حسگرها در مدیریت موتور',
-    bodyFa:
-        'حسگرها اطلاعاتی مانند دمای موتور، فشار هوا، موقعیت دریچه گاز و دور موتور را گزارش می‌کنند. بررسی داده زنده و مقایسه آن با مشخصات فنی، بخش مهمی از عیب‌یابی است.',
-    bodyEn:
-        'Sensors report information such as engine temperature, air pressure, throttle position and engine speed.',
-    icon: Icons.sensors,
-  ),
-  Lesson(
-    fa: 'مبانی ریمپ',
-    en: 'Remapping Basics',
-    summary: 'آشنایی با کالیبراسیون ECU',
-    bodyFa:
-        'ریمپ به بررسی و اصلاح کالیبراسیون ECU گفته می‌شود. هر تغییر باید با شناخت موتور، سوخت، سخت‌افزار، استاندارد آلایندگی و محدودیت‌های ایمنی انجام شود.',
-    bodyEn:
-        'ECU remapping involves reviewing and modifying calibration. Changes must account for engine hardware, fuel, emissions and safety.',
-    icon: Icons.speed,
-  ),
-  Lesson(
-    fa: 'خواندن کد خطا',
-    en: 'Reading Fault Codes',
-    summary: 'شروع اصولی عیب‌یابی',
-    bodyFa:
-        'کد خطا سرنخی برای یافتن مشکل است، نه تشخیص قطعی قطعه خراب. شرایط ثبت خطا و داده زنده باید پیش از تصمیم‌گیری بررسی شوند.',
-    bodyEn:
-        'A fault code is a clue, not proof of a failed component. Live data should be reviewed before making a diagnosis.',
-    icon: Icons.car_repair,
-  ),
-  Lesson(
-    fa: 'نقشه‌های ECU',
-    en: 'ECU Maps',
-    summary: 'آشنایی با مفهوم مپ',
-    bodyFa:
-        'مپ‌ها داده‌های کالیبراسیون هستند که رفتار بخش‌هایی از مدیریت موتور را تعیین می‌کنند. شناخت آن‌ها به ساختار فایل، تعریف محورها و مستندات معتبر نیاز دارد.',
-    bodyEn:
-        'Maps are calibration data that define aspects of engine management. Understanding them requires knowledge of file structure and documentation.',
-    icon: Icons.grid_view,
-  ),
-  Lesson(
-    fa: 'ایمنی کارگاه',
-    en: 'Workshop Safety',
-    summary: 'اصول پایه پیش از کار عملی',
-    bodyFa:
-        'از فایل اصلی نسخه پشتیبان تهیه کنید، از ابزار سازگار استفاده کنید و تغذیه برق پایدار داشته باشید. برای عملیات تخصصی از تکنسین واجد صلاحیت کمک بگیرید.',
-    bodyEn:
-        'Back up original files, use compatible equipment and maintain stable power. Qualified technicians should perform specialist operations.',
-    icon: Icons.verified_user,
-  ),
-];
-
-class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
-
-  @override
-  State<MainScreen> createState() => _MainScreenState();
-}
-
-class _MainScreenState extends State<MainScreen> {
-  bool fa = true;
-  bool sound = true;
-  int selectedTab = 0;
-  String searchText = '';
-  List<Lesson> remoteLessons = [];
-
-  String t(String a, String b) => fa ? a : b;
-
-  @override
-  void initState() {
-    super.initState();
-    loadPreferences();
-    loadLessons();
-  }
-
-  Future<void> loadPreferences() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    if (!mounted) return;
-
-    setState(() {
-      sound = prefs.getBool('caracal_sound_enabled') ?? true;
-    });
-  }
-
-  Future<void> loadLessons() async {
-    if (!backendReady) return;
-
-    try {
-      final rows = await Supabase.instance.client
-          .from('lessons')
-          .select()
-          .eq('is_published', true)
-          .order('created_at', ascending: false);
-
-      final result = rows.map<Lesson>((row) {
-        return Lesson(
-          fa: row['title_fa'] ?? 'آموزش',
-          en: row['title_en'] ?? 'Lesson',
-          summary: row['summary_fa'] ?? '',
-          bodyFa: row['body_fa'] ?? '',
-          bodyEn: row['body_en'] ?? '',
-          icon: Icons.menu_book,
-        );
-      }).toList();
-
-      if (mounted) {
-        setState(() {
-          remoteLessons = result;
-        });
-      }
-    } catch (_) {
-      // Local lessons are kept available.
-    }
-  }
-
-  List<Lesson> get allLessons => [
-        ...localLessons,
-        ...remoteLessons,
-      ];
+  String t(String fa, String en) => english ? en : fa;
 
   @override
   Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: fa ? TextDirection.rtl : TextDirection.ltr,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text(
-            'CARACAL TUNING',
-            style: TextStyle(
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.2,
-              fontSize: 16,
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
+      children: [
+        Row(
+          children: [
+            const SizedBox(
+              width: 52,
+              height: 48,
+              child: CustomPaint(painter: CaracalPainter()),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  fa = !fa;
-                });
-              },
-              child: Text(
-                fa ? 'EN' : 'فا',
-                style: const TextStyle(color: silver),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'CARACAL TUNING',
+                    style: TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                  Text(
+                    'DRIVE • LEARN • UPGRADE',
+                    style: TextStyle(
+                      color: red,
+                      fontSize: 9,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                ],
               ),
             ),
             IconButton(
-              onPressed: openSettings,
-              icon: const Icon(Icons.settings_outlined),
+              onPressed: () {},
+              icon: const Icon(Icons.notifications_none, color: silver),
             ),
           ],
         ),
-        body: IndexedStack(
-          index: selectedTab,
-          children: [
-            homePage(),
-            academyPage(),
-            accountPage(),
-          ],
-        ),
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: selectedTab,
-          onDestinationSelected: (value) {
-            setState(() {
-              selectedTab = value;
-            });
-          },
-          backgroundColor: const Color(0xFF111316),
-          indicatorColor: Colors.white12,
-          destinations: [
-            NavigationDestination(
-              icon: const Icon(Icons.dashboard_outlined),
-              label: t('خانه', 'Home'),
-            ),
-            NavigationDestination(
-              icon: const Icon(Icons.school_outlined),
-              label: t('آکادمی', 'Academy'),
-            ),
-            NavigationDestination(
-              icon: const Icon(Icons.person_outline),
-              label: t('حساب', 'Account'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget homePage() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
+        const SizedBox(height: 25),
         Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            gradient: const LinearGradient(
-              colors: [
-                Color(0xFF383D43),
-                Color(0xFF17191D),
-                Colors.black,
-              ],
-            ),
-            border: Border.all(color: Colors.white24),
+            color: panel,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.white10),
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Center(
-                child: CaracalLogo(size: 105),
-              ),
-              const SizedBox(height: 10),
-              const Center(
-                child: Text(
-                  'DRIVE • LEARN • UPGRADE',
-                  style: TextStyle(
-                    color: silver,
-                    fontSize: 11,
-                    letterSpacing: 1.5,
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      t('آماده‌ای؟', 'READY TO DRIVE?'),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 17,
+                      ),
+                    ),
                   ),
-                ),
+                  const Icon(Icons.bolt, color: red, size: 25),
+                ],
               ),
-              const SizedBox(height: 15),
-              Text(
-                t('قدرت، دانش، کنترل.', 'POWER. KNOWLEDGE. CONTROL.'),
-                style: const TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 21,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                t(
-                  'به مرکز تخصصی آموزش و دانش فنی خودرو خوش آمدید.',
-                  'Your hub for automotive technical learning.',
-                ),
-                style: const TextStyle(
-                  color: Colors.white70,
-                  height: 1.7,
-                ),
-              ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 12),
               SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      selectedTab = 1;
-                    });
-                  },
-                  icon: const Icon(Icons.play_arrow),
-                  label: Text(t('ورود به آکادمی', 'Explore Academy')),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: silver,
-                    foregroundColor: Colors.black,
-                  ),
+                height: 210,
+                child: AnimatedGauge(
+                  redline: redline,
+                  animations: animations,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                t('قدرت را بشناس؛ دقیق‌تر تنظیم کن',
+                    'Understand power. Tune smarter.'),
+                style: const TextStyle(
+                  color: silver,
+                  fontSize: 12,
                 ),
               ),
             ],
@@ -665,64 +424,124 @@ class _MainScreenState extends State<MainScreen> {
         ),
         const SizedBox(height: 25),
         Text(
-          t('مسیرهای تخصصی', 'SPECIALTIES'),
+          t('دسترسی سریع', 'QUICK ACCESS'),
           style: const TextStyle(
-            fontSize: 19,
-            fontWeight: FontWeight.w900,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 13),
         GridView.count(
           crossAxisCount: 2,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          childAspectRatio: 1.5,
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: 1.55,
           children: [
-            categoryCard(Icons.memory, t('شناخت ECU', 'ECU BASICS'), 0),
-            categoryCard(Icons.speed, t('ریمپ', 'REMAPPING'), 2),
-            categoryCard(Icons.car_repair, t('عیب‌یابی', 'DIAGNOSTICS'), 3),
-            categoryCard(Icons.shield, t('ایمنی', 'SAFETY'), 5),
+            QuickCard(
+              icon: Icons.school,
+              title: t('آموزش تخصصی', 'Technical Learning'),
+              subtitle: t('دانش فنی خودرو', 'Automotive knowledge'),
+              onTap: () => onNavigate(1),
+            ),
+            QuickCard(
+              icon: Icons.memory,
+              title: t('ریمپ و ECU', 'ECU & Remap'),
+              subtitle: t('مفاهیم و آموزش', 'Concepts & tutorials'),
+              onTap: () => onNavigate(1),
+            ),
+            QuickCard(
+              icon: Icons.car_repair,
+              title: t('گاراژ من', 'My Garage'),
+              subtitle: t('خودروهای من', 'My vehicles'),
+              onTap: () => onNavigate(2),
+            ),
+            QuickCard(
+              icon: Icons.settings,
+              title: t('مرکز کنترل', 'Control Center'),
+              subtitle: t('شخصی‌سازی برنامه', 'App customization'),
+              onTap: () => onNavigate(3),
+            ),
           ],
         ),
         const SizedBox(height: 25),
         Text(
-          t('آموزش‌های منتخب', 'FEATURED LESSONS'),
+          t('آخرین بخش‌ها', 'FEATURED TOPICS'),
           style: const TextStyle(
-            fontSize: 19,
-            fontWeight: FontWeight.w900,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
           ),
         ),
         const SizedBox(height: 12),
-        ...allLessons.take(3).map(lessonTile),
+        FeatureTile(
+          icon: Icons.speed,
+          title: t('اصول عملکرد موتور', 'Engine Fundamentals'),
+          subtitle: t('آشنایی با پارامترهای اصلی موتور',
+              'Understanding core engine parameters'),
+        ),
+        FeatureTile(
+          icon: Icons.developer_board,
+          title: t('آشنایی با ECU', 'Getting to Know ECU'),
+          subtitle: t('ساختار و وظایف واحد کنترل موتور',
+              'Engine control unit architecture'),
+        ),
+        FeatureTile(
+          icon: Icons.analytics_outlined,
+          title: t('مبانی تحلیل داده', 'Data Analysis Basics'),
+          subtitle: t('شناخت داده‌ها و پارامترهای خودرو',
+              'Understanding vehicle data'),
+        ),
       ],
     );
   }
+}
 
-  Widget categoryCard(IconData icon, String title, int index) {
+class QuickCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const QuickCard({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: () {
-        openLesson(localLessons[index]);
-      },
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(15),
       child: Container(
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: panel,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white12),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: Colors.white10),
         ),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: silver, size: 31),
+            Icon(icon, color: red, size: 25),
             const SizedBox(height: 9),
             Text(
               title,
-              textAlign: TextAlign.center,
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 12,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: const TextStyle(
+                color: Colors.white54,
+                fontSize: 10,
               ),
             ),
           ],
@@ -730,669 +549,759 @@ class _MainScreenState extends State<MainScreen> {
       ),
     );
   }
+}
 
-  Widget academyPage() {
-    final filtered = allLessons.where((lesson) {
-      final text = '${lesson.fa} ${lesson.en} ${lesson.summary}'.toLowerCase();
-      return text.contains(searchText.toLowerCase());
-    }).toList();
+class FeatureTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
 
-    return Column(
+  const FeatureTile({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: panel,
+        borderRadius: BorderRadius.circular(13),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: red, size: 26),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: Colors.white54,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right, color: silver),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------- RPM GAUGE ----------------
+
+class AnimatedGauge extends StatefulWidget {
+  final bool redline;
+  final bool animations;
+
+  const AnimatedGauge({
+    super.key,
+    required this.redline,
+    required this.animations,
+  });
+
+  @override
+  State<AnimatedGauge> createState() => _AnimatedGaugeState();
+}
+
+class _AnimatedGaugeState extends State<AnimatedGauge>
+    with SingleTickerProviderStateMixin {
+  late AnimationController controller;
+  late Animation<double> rpm;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2400),
+    );
+
+    rpm = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(begin: 0, end: 6500)
+            .chain(CurveTween(curve: Curves.easeOutCubic)),
+        weight: 65,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 6500, end: 2200)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 35,
+      ),
+    ]).animate(controller);
+
+    if (widget.animations) {
+      controller.repeat();
+    } else {
+      controller.value = .65;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant AnimatedGauge oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.animations && !controller.isAnimating) {
+      controller.repeat();
+    } else if (!widget.animations && controller.isAnimating) {
+      controller.stop();
+      controller.value = .65;
+    }
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: rpm,
+      builder: (context, child) {
+        return CustomPaint(
+          painter: GaugePainter(
+            value: rpm.value,
+            redline: widget.redline,
+          ),
+          child: const SizedBox.expand(),
+        );
+      },
+    );
+  }
+}
+
+class GaugePainter extends CustomPainter {
+  final double value;
+  final bool redline;
+
+  GaugePainter({
+    required this.value,
+    required this.redline,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height * .78);
+    final radius = math.min(size.width * .43, size.height * .72);
+    const start = math.pi * 1.12;
+    const sweep = math.pi * .76;
+
+    final base = Paint()
+      ..color = Colors.white12
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 13
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      start,
+      sweep,
+      false,
+      base,
+    );
+
+    final active = Paint()
+      ..shader = const SweepGradient(
+        colors: [silver, Colors.white, red],
+        stops: [0, .72, 1],
+      ).createShader(Rect.fromCircle(center: center, radius: radius))
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 13
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      start,
+      sweep * (value / 8000).clamp(0, 1),
+      false,
+      active,
+    );
+
+    final tickPaint = Paint()
+      ..color = silver
+      ..strokeWidth = 2;
+
+    for (int i = 0; i <= 40; i++) {
+      final angle = start + sweep * i / 40;
+      final outer = Offset(
+        center.dx + math.cos(angle) * (radius + 12),
+        center.dy + math.sin(angle) * (radius + 12),
+      );
+      final inner = Offset(
+        center.dx + math.cos(angle) * (radius - (i % 5 == 0 ? 12 : 6)),
+        center.dy + math.sin(angle) * (radius - (i % 5 == 0 ? 12 : 6)),
+      );
+
+      tickPaint.color =
+          i >= 34 && redline ? red : silver.withOpacity(.75);
+      canvas.drawLine(inner, outer, tickPaint);
+    }
+
+    for (int i = 0; i <= 8; i++) {
+      final angle = start + sweep * i / 8;
+      final pos = Offset(
+        center.dx + math.cos(angle) * (radius - 30),
+        center.dy + math.sin(angle) * (radius - 30),
+      );
+
+      final tp = TextPainter(
+        text: TextSpan(
+          text: '$i',
+          style: TextStyle(
+            color: i >= 7 && redline ? red : silver,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+
+      tp.paint(canvas, pos - Offset(tp.width / 2, tp.height / 2));
+    }
+
+    final needleAngle = start + sweep * (value / 8000).clamp(0, 1);
+    final needleEnd = Offset(
+      center.dx + math.cos(needleAngle) * (radius - 22),
+      center.dy + math.sin(needleAngle) * (radius - 22),
+    );
+
+    if (redline && value > 6000) {
+      canvas.drawLine(
+        center,
+        needleEnd,
+        Paint()
+          ..color = red.withOpacity(.4)
+          ..strokeWidth = 12
+          ..strokeCap = StrokeCap.round
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
+      );
+    }
+
+    canvas.drawLine(
+      center,
+      needleEnd,
+      Paint()
+        ..color = red
+        ..strokeWidth = 4
+        ..strokeCap = StrokeCap.round,
+    );
+
+    canvas.drawCircle(
+      center,
+      10,
+      Paint()..color = const Color(0xFF555B63),
+    );
+    canvas.drawCircle(
+      center,
+      5,
+      Paint()..color = red,
+    );
+
+    final valueText = TextPainter(
+      text: TextSpan(
+        text: (value / 1000).toStringAsFixed(1),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 29,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 1,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    valueText.paint(
+      canvas,
+      Offset(center.dx - valueText.width / 2, center.dy - 48),
+    );
+
+    final unit = TextPainter(
+      text: const TextSpan(
+        text: 'x1000 RPM',
+        style: TextStyle(
+          color: silver,
+          fontSize: 10,
+          letterSpacing: 2,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    unit.paint(
+      canvas,
+      Offset(center.dx - unit.width / 2, center.dy - 15),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant GaugePainter oldDelegate) =>
+      oldDelegate.value != value || oldDelegate.redline != redline;
+}
+
+// ---------------- CARACAL LOGO ----------------
+
+class CaracalPainter extends CustomPainter {
+  const CaracalPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final sx = size.width / 220;
+    final sy = size.height / 180;
+
+    canvas.save();
+    canvas.scale(sx, sy);
+
+    final metal = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          Color(0xFFFFFFFF),
+          Color(0xFF9EA5AD),
+          Color(0xFF353A40),
+        ],
+      ).createShader(const Rect.fromLTWH(0, 0, 220, 180));
+
+    final dark = Paint()..color = const Color(0xFF171A1E);
+    final eye = Paint()..color = red;
+    final outline = Paint()
+      ..color = const Color(0xFFD9DEE3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.2;
+
+    final head = Path()
+      ..moveTo(38, 48)
+      ..lineTo(26, 4)
+      ..lineTo(72, 35)
+      ..quadraticBezierTo(110, 17, 148, 35)
+      ..lineTo(194, 4)
+      ..lineTo(182, 51)
+      ..quadraticBezierTo(205, 90, 176, 130)
+      ..quadraticBezierTo(151, 164, 110, 174)
+      ..quadraticBezierTo(69, 164, 44, 130)
+      ..quadraticBezierTo(15, 90, 38, 48)
+      ..close();
+
+    canvas.drawPath(head, metal);
+    canvas.drawPath(head, outline);
+
+    final innerLeft = Path()
+      ..moveTo(39, 18)
+      ..lineTo(67, 42)
+      ..lineTo(53, 76)
+      ..close();
+
+    final innerRight = Path()
+      ..moveTo(181, 18)
+      ..lineTo(153, 42)
+      ..lineTo(167, 76)
+      ..close();
+
+    canvas.drawPath(innerLeft, dark);
+    canvas.drawPath(innerRight, dark);
+
+    final face = Path()
+      ..moveTo(49, 70)
+      ..quadraticBezierTo(110, 37, 171, 70)
+      ..lineTo(158, 127)
+      ..quadraticBezierTo(110, 170, 62, 127)
+      ..close();
+
+    canvas.drawPath(face, dark);
+
+    final browLeft = Path()
+      ..moveTo(52, 78)
+      ..lineTo(103, 87)
+      ..lineTo(84, 103)
+      ..lineTo(49, 94)
+      ..close();
+
+    final browRight = Path()
+      ..moveTo(168, 78)
+      ..lineTo(117, 87)
+      ..lineTo(136, 103)
+      ..lineTo(171, 94)
+      ..close();
+
+    canvas.drawPath(browLeft, metal);
+    canvas.drawPath(browRight, metal);
+
+    final eyeLeft = Path()
+      ..moveTo(59, 91)
+      ..lineTo(96, 95)
+      ..lineTo(81, 105)
+      ..close();
+
+    final eyeRight = Path()
+      ..moveTo(161, 91)
+      ..lineTo(124, 95)
+      ..lineTo(139, 105)
+      ..close();
+
+    canvas.drawPath(eyeLeft, eye);
+    canvas.drawPath(eyeRight, eye);
+
+    final nose = Path()
+      ..moveTo(91, 119)
+      ..quadraticBezierTo(110, 108, 129, 119)
+      ..lineTo(110, 134)
+      ..close();
+
+    canvas.drawPath(nose, metal);
+
+    final mouth = Paint()
+      ..color = silver
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5;
+
+    canvas.drawLine(const Offset(110, 134), const Offset(110, 148), mouth);
+    canvas.drawLine(const Offset(110, 148), const Offset(88, 140), mouth);
+    canvas.drawLine(const Offset(110, 148), const Offset(132, 140), mouth);
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant CaracalPainter oldDelegate) => false;
+}
+
+// ---------------- LEARN ----------------
+
+class LearnScreen extends StatelessWidget {
+  final bool english;
+  const LearnScreen({super.key, required this.english});
+
+  String t(String fa, String en) => english ? en : fa;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      [Icons.memory, 'آشنایی با ECU', 'ECU Fundamentals'],
+      [Icons.speed, 'اصول ریمپ', 'Remapping Basics'],
+      [Icons.electric_bolt, 'سیستم جرقه', 'Ignition System'],
+      [Icons.local_gas_station, 'سیستم سوخت‌رسانی', 'Fuel System'],
+      [Icons.analytics, 'تحلیل پارامترها', 'Parameter Analysis'],
+      [Icons.build, 'عیب‌یابی خودرو', 'Vehicle Diagnostics'],
+      [Icons.settings_suggest, 'ساختار موتور', 'Engine Architecture'],
+      [Icons.show_chart, 'مبانی جداول موتور', 'Engine Maps Basics'],
+    ];
+
+    return ListView(
+      padding: const EdgeInsets.all(18),
       children: [
-        Padding(
+        Text(
+          t('آموزش تخصصی', 'TECHNICAL ACADEMY'),
+          style: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          t('دانش فنی، از پایه تا پیشرفته',
+              'Automotive knowledge from basic to advanced'),
+          style: const TextStyle(color: silver, fontSize: 12),
+        ),
+        const SizedBox(height: 20),
+        for (final item in items)
+          FeatureTile(
+            icon: item[0] as IconData,
+            title: t(item[1] as String, item[2] as String),
+            subtitle: t('برای مشاهده و یادگیری انتخاب کنید',
+                'Select to explore this topic'),
+          ),
+      ],
+    );
+  }
+}
+
+// ---------------- GARAGE ----------------
+
+class GarageScreen extends StatelessWidget {
+  final bool english;
+  const GarageScreen({super.key, required this.english});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            english ? 'MY GARAGE' : 'گاراژ من',
+            style: const TextStyle(
+              fontSize: 23,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: panel,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white10),
+            ),
+            child: Column(
+              children: [
+                const Icon(
+                  Icons.directions_car_filled,
+                  size: 65,
+                  color: silver,
+                ),
+                const SizedBox(height: 15),
+                Text(
+                  english ? 'Your garage is ready' : 'گاراژ شما آماده است',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 17,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  english
+                      ? 'Vehicle management will be available after connecting your account.'
+                      : 'مدیریت خودروها پس از اتصال حساب کاربری فعال می‌شود.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white54,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                FilledButton.icon(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          english
+                              ? 'Vehicle registration requires account setup.'
+                              : 'ثبت خودرو به راه‌اندازی حساب کاربری نیاز دارد.',
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.add),
+                  label: Text(english ? 'ADD VEHICLE' : 'افزودن خودرو'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------- SETTINGS ----------------
+
+class SettingsScreen extends StatelessWidget {
+  final bool english;
+  final bool haptics;
+  final bool redline;
+  final bool animations;
+  final bool engineSound;
+  final bool compact;
+  final Future<void> Function(String, bool) onChange;
+
+  const SettingsScreen({
+    super.key,
+    required this.english,
+    required this.haptics,
+    required this.redline,
+    required this.animations,
+    required this.engineSound,
+    required this.compact,
+    required this.onChange,
+  });
+
+  String t(String fa, String en) => english ? en : fa;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(18),
+      children: [
+        const Text(
+          'CARACAL CONTROL CENTER',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1,
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          t('مرکز کنترل و شخصی‌سازی', 'Personalization & Controls'),
+          style: const TextStyle(color: silver, fontSize: 12),
+        ),
+        const SizedBox(height: 20),
+        _section(t('ظاهر و نمایش', 'DISPLAY & APPEARANCE')),
+        _switch(
+          t('افکت‌های حرکتی', 'Motion Effects'),
+          t('فعال‌سازی انیمیشن‌ها', 'Enable animations'),
+          animations,
+          (v) => onChange('animations', v),
+          Icons.animation,
+        ),
+        _switch(
+          t('نور ردلاین', 'Redline Glow'),
+          t('افکت نور قرمز دور موتور', 'RPM redline lighting'),
+          redline,
+          (v) => onChange('redline', v),
+          Icons.brightness_high,
+        ),
+        _switch(
+          t('داشبورد فشرده', 'Compact Dashboard'),
+          t('نمایش فشرده‌تر اطلاعات', 'Use a compact dashboard'),
+          compact,
+          (v) => onChange('compact', v),
+          Icons.dashboard_customize,
+        ),
+        const SizedBox(height: 12),
+        _section(t('صدا و بازخورد', 'SOUND & FEEDBACK')),
+        _switch(
+          t('صدای موتور', 'Engine Sound'),
+          t('تنظیم صدای موتور', 'Engine sound preference'),
+          engineSound,
+          (v) => onChange('engineSound', v),
+          Icons.volume_up,
+        ),
+        _switch(
+          t('بازخورد لمسی', 'Haptic Feedback'),
+          t('لرزش هنگام لمس کنترل‌ها', 'Touch feedback'),
+          haptics,
+          (v) => onChange('haptics', v),
+          Icons.vibration,
+        ),
+        const SizedBox(height: 12),
+        _section(t('زبان برنامه', 'APP LANGUAGE')),
+        ListTile(
+          leading: const Icon(Icons.language, color: red),
+          title: Text(t('زبان فارسی', 'Persian Language')),
+          subtitle: Text(t('تغییر زبان برنامه', 'Change application language')),
+          trailing: Switch(
+            value: english,
+            activeColor: red,
+            onChanged: (v) => onChange('english', v),
+          ),
+        ),
+        const SizedBox(height: 15),
+        _section(t('حساب و امنیت', 'ACCOUNT & SECURITY')),
+        ListTile(
+          leading: const Icon(Icons.lock_outline, color: silver),
+          title: Text(t('امنیت حساب', 'Account Security')),
+          subtitle: Text(
+            t('پس از راه‌اندازی سامانه حساب فعال می‌شود',
+                'Available after account integration'),
+          ),
+        ),
+        ListTile(
+          leading: const Icon(Icons.devices, color: silver),
+          title: Text(t('دستگاه‌های متصل', 'Connected Devices')),
+          subtitle: Text(
+            t('مدیریت دستگاه‌ها پس از اتصال حساب',
+                'Manage devices after account setup'),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Container(
           padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: panel,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.white10),
+          ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                t('کتابخانه آموزش', 'LEARNING LIBRARY'),
-                style: const TextStyle(
-                  fontSize: 23,
+              const SizedBox(
+                width: 75,
+                height: 65,
+                child: CustomPaint(painter: CaracalPainter()),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'CARACAL TUNING',
+                style: TextStyle(
                   fontWeight: FontWeight.w900,
+                  letterSpacing: 2,
                 ),
               ),
-              const SizedBox(height: 14),
-              TextField(
-                onChanged: (value) {
-                  setState(() {
-                    searchText = value;
-                  });
-                },
-                decoration: InputDecoration(
-                  hintText: t('جست‌وجوی آموزش...', 'Search lessons...'),
-                  prefixIcon: const Icon(Icons.search),
-                  filled: true,
-                  fillColor: panel,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none,
-                  ),
+              const SizedBox(height: 5),
+              const Text(
+                'DRIVE • LEARN • UPGRADE',
+                style: TextStyle(
+                  color: red,
+                  fontSize: 10,
+                  letterSpacing: 1.5,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Version 1.0.0',
+                style: TextStyle(
+                  color: Colors.white38,
+                  fontSize: 10,
                 ),
               ),
             ],
           ),
         ),
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            children: filtered.map(lessonTile).toList(),
-          ),
-        ),
       ],
     );
   }
 
-  Widget lessonTile(Lesson lesson) {
-    return Card(
-      color: panel,
-      margin: const EdgeInsets.only(bottom: 10),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: Colors.white10),
-      ),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: Colors.white10,
-          child: Icon(lesson.icon, color: silver),
-        ),
-        title: Text(
-          fa ? lesson.fa : lesson.en,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Text(
-          fa ? lesson.summary : 'Technical lesson',
-          style: const TextStyle(color: muted),
-        ),
-        trailing: const Icon(Icons.chevron_right, color: silver),
-        onTap: () {
-          openLesson(lesson);
-        },
-      ),
-    );
-  }
-
-  void openLesson(Lesson lesson) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => LessonScreen(
-          lesson: lesson,
-          fa: fa,
-        ),
-      ),
-    );
-  }
-
-  Widget accountNotice(String text) {
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: panel,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white12),
-      ),
+  Widget _section(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8, top: 8),
       child: Text(
-        text,
-        style: const TextStyle(height: 1.7),
-      ),
-    );
-  }
-
-  Widget accountPage() {
-    final user = backendReady
-        ? Supabase.instance.client.auth.currentUser
-        : null;
-
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        const SizedBox(height: 15),
-        const Center(child: CaracalLogo(size: 115)),
-        const SizedBox(height: 15),
-        Center(
-          child: Text(
-            t('حساب کاربری', 'YOUR ACCOUNT'),
-            style: const TextStyle(
-              fontWeight: FontWeight.w900,
-              fontSize: 23,
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
-        if (!backendReady) ...[
-          accountNotice(
-            t(
-              'اتصال سرور تنظیم نشده است. برای فعال‌سازی ورود، کلیدهای Supabase باید هنگام ساخت APK تنظیم شوند.',
-              'Supabase is not configured. Set the Supabase build keys to enable authentication.',
-            ),
-          ),
-        ] else if (user == null) ...[
-          accountNotice(
-            t(
-              'برای استفاده از امکانات حساب کاربری وارد شوید یا ثبت‌نام کنید.',
-              'Sign in or register to use account features.',
-            ),
-          ),
-          const SizedBox(height: 12),
-          FilledButton.icon(
-            onPressed: () {
-              openAuth();
-            },
-            icon: const Icon(Icons.login),
-            label: Text(t('ورود / ثبت‌نام', 'Sign in / Register')),
-          ),
-        ] else ...[
-          accountNotice(
-            '${t('وارد شده با', 'Signed in as')}: ${user.email ?? ''}',
-          ),
-          const SizedBox(height: 10),
-          ListTile(
-            leading: const Icon(Icons.admin_panel_settings, color: silver),
-            title: Text(t('پنل مدیریت', 'Administration')),
-            onTap: openAdmin,
-          ),
-          ListTile(
-            leading: const Icon(Icons.logout, color: red),
-            title: Text(t('خروج از حساب', 'Sign out')),
-            onTap: signOut,
-          ),
-        ],
-      ],
-    );
-  }
-
-  Future<void> openAuth() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => AuthScreen(fa: fa),
-      ),
-    );
-
-    if (mounted) setState(() {});
-  }
-
-  Future<void> signOut() async {
-    try {
-      await Supabase.instance.client.auth.signOut();
-
-      if (mounted) {
-        setState(() {});
-      }
-    } catch (_) {
-      showMessage(t('خروج انجام نشد.', 'Sign out failed.'));
-    }
-  }
-
-  Future<void> openAdmin() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => OwnerAdminScreen(fa: fa),
-      ),
-    );
-  }
-
-  Future<void> openSettings() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => SettingsScreen(fa: fa),
-      ),
-    );
-
-    await loadPreferences();
-
-    if (mounted) setState(() {});
-  }
-
-  void showMessage(String text) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(text)),
-    );
-  }
-}
-
-class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key, required this.fa});
-
-  final bool fa;
-
-  @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
-}
-
-class _SettingsScreenState extends State<SettingsScreen> {
-  bool sound = true;
-
-  @override
-  void initState() {
-    super.initState();
-    load();
-  }
-
-  Future<void> load() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    if (!mounted) return;
-
-    setState(() {
-      sound = prefs.getBool('caracal_sound_enabled') ?? true;
-    });
-  }
-
-  Future<void> changeSound(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-
-    await prefs.setBool('caracal_sound_enabled', value);
-
-    if (mounted) {
-      setState(() {
-        sound = value;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final fa = widget.fa;
-
-    return Directionality(
-      textDirection: fa ? TextDirection.rtl : TextDirection.ltr,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(fa ? 'تنظیمات' : 'Settings'),
-        ),
-        body: ListView(
-          children: [
-            SwitchListTile(
-              value: sound,
-              activeThumbColor: red,
-              title: Text(
-                fa ? 'صدای شروع برنامه' : 'Startup sound',
-              ),
-              subtitle: Text(
-                fa
-                    ? 'فعال یا غیرفعال کردن صدای موتور'
-                    : 'Enable or disable engine sound',
-              ),
-              onChanged: changeSound,
-            ),
-            ListTile(
-              leading: const Icon(Icons.language),
-              title: Text(fa ? 'زبان برنامه' : 'App language'),
-              subtitle: Text(
-                fa ? 'فارسی / انگلیسی' : 'Persian / English',
-              ),
-            ),
-            const ListTile(
-              leading: Icon(Icons.info_outline),
-              title: Text('CARACAL TUNING'),
-              subtitle: Text('DRIVE • LEARN • UPGRADE'),
-            ),
-          ],
+        title,
+        style: const TextStyle(
+          color: red,
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 1,
         ),
       ),
     );
   }
-}
 
-class LessonScreen extends StatelessWidget {
-  const LessonScreen({
-    super.key,
-    required this.lesson,
-    required this.fa,
-  });
-
-  final Lesson lesson;
-  final bool fa;
-
-  @override
-  Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: fa ? TextDirection.rtl : TextDirection.ltr,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(fa ? lesson.fa : lesson.en),
-        ),
-        body: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            Container(
-              padding: const EdgeInsets.all(22),
-              decoration: BoxDecoration(
-                color: panel,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: Colors.white12),
-              ),
-              child: Column(
-                children: [
-                  Icon(
-                    lesson.icon,
-                    size: 55,
-                    color: silver,
-                  ),
-                  const SizedBox(height: 15),
-                  Text(
-                    fa ? lesson.fa : lesson.en,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 22),
-            Text(
-              fa ? lesson.bodyFa : lesson.bodyEn,
-              style: const TextStyle(
-                fontSize: 16,
-                height: 2,
-                color: Colors.white70,
-              ),
-            ),
-          ],
-        ),
+  Widget _switch(
+    String title,
+    String subtitle,
+    bool value,
+    ValueChanged<bool> onChanged,
+    IconData icon,
+  ) {
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      secondary: Icon(icon, color: silver),
+      title: Text(
+        title,
+        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
       ),
-    );
-  }
-}
-
-class AuthScreen extends StatefulWidget {
-  const AuthScreen({super.key, required this.fa});
-
-  final bool fa;
-
-  @override
-  State<AuthScreen> createState() => _AuthScreenState();
-}
-
-class _AuthScreenState extends State<AuthScreen> {
-  final email = TextEditingController();
-  final password = TextEditingController();
-
-  bool registering = false;
-  bool busy = false;
-
-  @override
-  void dispose() {
-    email.dispose();
-    password.dispose();
-    super.dispose();
-  }
-
-  void message(String text) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(text)),
-    );
-  }
-
-  Future<void> submit() async {
-    if (email.text.trim().isEmpty || password.text.length < 8) {
-      message(
-        widget.fa
-            ? 'ایمیل و رمز حداقل ۸ کاراکتری وارد کنید.'
-            : 'Enter an email and a password of at least 8 characters.',
-      );
-      return;
-    }
-
-    setState(() {
-      busy = true;
-    });
-
-    try {
-      final auth = Supabase.instance.client.auth;
-
-      if (registering) {
-        await auth.signUp(
-          email: email.text.trim(),
-          password: password.text,
-        );
-      } else {
-        await auth.signInWithPassword(
-          email: email.text.trim(),
-          password: password.text,
-        );
-      }
-
-      if (!mounted) return;
-
-      if (registering && auth.currentUser == null) {
-        message(
-          widget.fa
-              ? 'لینک تأیید به ایمیل شما ارسال شد.'
-              : 'A confirmation link was sent to your email.',
-        );
-      } else {
-        Navigator.pop(context);
-      }
-    } on AuthException catch (error) {
-      message(error.message);
-    } catch (_) {
-      message(
-        widget.fa
-            ? 'اتصال برقرار نشد. تنظیمات سرور را بررسی کنید.'
-            : 'Connection failed. Check server settings.',
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          busy = false;
-        });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: widget.fa ? TextDirection.rtl : TextDirection.ltr,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(widget.fa ? 'ورود به کاراکال' : 'CARACAL SIGN IN'),
-        ),
-        body: ListView(
-          padding: const EdgeInsets.all(22),
-          children: [
-            const SizedBox(height: 20),
-            const Center(child: CaracalLogo(size: 120)),
-            const SizedBox(height: 30),
-            TextField(
-              controller: email,
-              keyboardType: TextInputType.emailAddress,
-              decoration: InputDecoration(
-                labelText: widget.fa ? 'ایمیل' : 'Email',
-                prefixIcon: const Icon(Icons.email_outlined),
-                filled: true,
-                fillColor: panel,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: password,
-              obscureText: true,
-              decoration: InputDecoration(
-                labelText: widget.fa ? 'رمز عبور' : 'Password',
-                prefixIcon: const Icon(Icons.lock_outline),
-                filled: true,
-                fillColor: panel,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            FilledButton(
-              onPressed: busy ? null : submit,
-              child: Padding(
-                padding: const EdgeInsets.all(13),
-                child: busy
-                    ? const CircularProgressIndicator()
-                    : Text(
-                        registering
-                            ? (widget.fa ? 'ساخت حساب' : 'Create account')
-                            : (widget.fa ? 'ورود' : 'Sign in'),
-                      ),
-              ),
-            ),
-            TextButton(
-              onPressed: busy
-                  ? null
-                  : () {
-                      setState(() {
-                        registering = !registering;
-                      });
-                    },
-              child: Text(
-                registering
-                    ? (widget.fa ? 'قبلاً حساب دارم؛ ورود' : 'Sign in')
-                    : (widget.fa ? 'ثبت‌نام حساب جدید' : 'Create an account'),
-              ),
-            ),
-          ],
-        ),
+      subtitle: Text(
+        subtitle,
+        style: const TextStyle(fontSize: 10, color: Colors.white54),
       ),
-    );
-  }
-}
-
-class OwnerAdminScreen extends StatefulWidget {
-  const OwnerAdminScreen({super.key, required this.fa});
-
-  final bool fa;
-
-  @override
-  State<OwnerAdminScreen> createState() => _OwnerAdminScreenState();
-}
-
-class _OwnerAdminScreenState extends State<OwnerAdminScreen> {
-  String? role;
-  bool loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    loadRole();
-  }
-
-  Future<void> loadRole() async {
-    try {
-      final client = Supabase.instance.client;
-      final user = client.auth.currentUser;
-
-      if (user == null) {
-        setState(() {
-          loading = false;
-        });
-        return;
-      }
-
-      final result = await client
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-      if (!mounted) return;
-
-      setState(() {
-        role = result?['role'] as String?;
-        loading = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-
-      setState(() {
-        loading = false;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final fa = widget.fa;
-
-    return Directionality(
-      textDirection: fa ? TextDirection.rtl : TextDirection.ltr,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(fa ? 'پنل مدیریت' : 'ADMIN PANEL'),
-        ),
-        body: loading
-            ? const Center(child: CircularProgressIndicator())
-            : ListView(
-                padding: const EdgeInsets.all(18),
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: panel,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Column(
-                      children: [
-                        const CaracalLogo(size: 90),
-                        const SizedBox(height: 15),
-                        Text(
-                          '${fa ? 'نقش حساب شما' : 'Your role'}: ${role ?? (fa ? 'تعیین نشده' : 'Not assigned')}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 17,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 15),
-                  if (role == 'owner') ...[
-                    ListTile(
-                      leading: const Icon(
-                        Icons.verified_user,
-                        color: silver,
-                      ),
-                      title: Text(
-                        fa ? 'مالک اصلی سامانه' : 'Platform owner',
-                      ),
-                      subtitle: Text(
-                        fa
-                            ? 'حساب مالک اصلی شناسایی شد.'
-                            : 'Owner account detected.',
-                      ),
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.menu_book),
-                      title: Text(
-                        fa ? 'مدیریت آموزش‌ها' : 'Lesson management',
-                      ),
-                      subtitle: Text(
-                        fa
-                            ? 'مدیریت محتوا از طریق جدول lessons در Supabase انجام می‌شود.'
-                            : 'Manage content through the lessons table in Supabase.',
-                      ),
-                    ),
-                  ] else ...[
-                    Text(
-                      fa
-                          ? 'این حساب نقش مالک ندارد. برای دسترسی مدیریتی، نقش حساب باید در جدول user_roles توسط مالک تعیین شود.'
-                          : 'This account is not the owner. The owner must assign its role in user_roles.',
-                      style: const TextStyle(height: 1.8),
-                    ),
-                  ],
-                  const SizedBox(height: 15),
-                  OutlinedButton.icon(
-                    onPressed: loadRole,
-                    icon: const Icon(Icons.refresh),
-                    label: Text(fa ? 'بررسی دوباره نقش' : 'Refresh role'),
-                  ),
-                ],
-              ),
-      ),
+      value: value,
+      activeColor: red,
+      onChanged: onChanged,
     );
   }
 }
