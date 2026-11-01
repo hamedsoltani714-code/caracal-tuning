@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 const String supabaseUrl = String.fromEnvironment('SUPABASE_URL');
@@ -37,7 +39,6 @@ class CaracalApp extends StatefulWidget {
 
 class _CaracalAppState extends State<CaracalApp> {
   bool english = false;
-  bool engineSound = true;
   bool animations = true;
   bool redline = true;
   bool haptics = true;
@@ -48,7 +49,7 @@ class _CaracalAppState extends State<CaracalApp> {
   void initState() {
     super.initState();
     loadSettings();
-    Future.delayed(const Duration(milliseconds: 4200), () {
+    Future.delayed(const Duration(milliseconds: 5700), () {
       if (mounted) setState(() => ready = true);
     });
   }
@@ -58,7 +59,6 @@ class _CaracalAppState extends State<CaracalApp> {
     if (!mounted) return;
     setState(() {
       english = p.getBool('english') ?? false;
-      engineSound = p.getBool('engineSound') ?? true;
       animations = p.getBool('animations') ?? true;
       redline = p.getBool('redline') ?? true;
       haptics = p.getBool('haptics') ?? true;
@@ -73,9 +73,6 @@ class _CaracalAppState extends State<CaracalApp> {
       switch (key) {
         case 'english':
           english = value;
-          break;
-        case 'engineSound':
-          engineSound = value;
           break;
         case 'animations':
           animations = value;
@@ -125,7 +122,6 @@ class _CaracalAppState extends State<CaracalApp> {
                       GarageScreen(english: english),
                       SettingsScreen(
                         english: english,
-                        engineSound: engineSound,
                         animations: animations,
                         redline: redline,
                         haptics: haptics,
@@ -168,72 +164,77 @@ class _CaracalAppState extends State<CaracalApp> {
                 ),
               ),
             )
-          : IntroScreen(engineSound: engineSound),
+          : const IntroScreen(),
     );
   }
 }
 
-// INTRO
+// INTRO — sound always starts automatically; no mute setting is exposed.
 
 class IntroScreen extends StatefulWidget {
-  final bool engineSound;
-
-  const IntroScreen({super.key, required this.engineSound});
+  const IntroScreen({super.key});
 
   @override
   State<IntroScreen> createState() => _IntroScreenState();
 }
 
 class _IntroScreenState extends State<IntroScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController controller;
+    with TickerProviderStateMixin {
+  late final AnimationController controller;
+  late final AnimationController roarMotion;
   final AudioPlayer enginePlayer = AudioPlayer();
   final AudioPlayer roarPlayer = AudioPlayer();
   Timer? roarTimer;
+  Timer? motionTimer;
 
   @override
   void initState() {
     super.initState();
-
     controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 4000),
+      duration: const Duration(milliseconds: 5200),
     )..forward();
-
-    if (widget.engineSound) {
-      playIntroSounds();
-    }
+    roarMotion = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 520),
+      lowerBound: -1,
+      upperBound: 1,
+    );
+    motionTimer = Timer(const Duration(milliseconds: 1050), () {
+      if (mounted) roarMotion.repeat(reverse: true);
+    });
+    Future.delayed(const Duration(milliseconds: 300), _playIntroSounds);
   }
 
-  Future<void> playIntroSounds() async {
+  Future<void> _playIntroSounds() async {
     try {
-      await enginePlayer.setVolume(1);
-      await roarPlayer.setVolume(1);
-
-      await enginePlayer.play(
-        AssetSource('Pagani-Zonda (2).mp3'),
-      );
-
-      roarTimer = Timer(
-        const Duration(milliseconds: 1700),
-        () async {
-          if (!mounted) return;
-          try {
-            await roarPlayer.play(
-              AssetSource('Caracal (1).mp3'),
-            );
-          } catch (_) {}
-        },
-      );
-    } catch (_) {}
+      await enginePlayer.setReleaseMode(ReleaseMode.stop);
+      await roarPlayer.setReleaseMode(ReleaseMode.stop);
+      await enginePlayer.setVolume(1.0);
+      await roarPlayer.setVolume(1.0);
+      await enginePlayer.play(AssetSource('Pagani-Zonda (2).mp3'));
+      roarTimer?.cancel();
+      roarTimer = Timer(const Duration(milliseconds: 1150), () async {
+        if (!mounted) return;
+        try {
+          await roarPlayer.play(AssetSource('Caracal (1).mp3'));
+        } catch (e) {
+          debugPrint('Caracal roar playback failed: $e');
+        }
+      });
+    } catch (e) {
+      debugPrint('Intro audio playback failed: $e');
+    }
   }
 
   @override
   void dispose() {
     roarTimer?.cancel();
+    motionTimer?.cancel();
     enginePlayer.dispose();
     roarPlayer.dispose();
     controller.dispose();
+    roarMotion.dispose();
     super.dispose();
   }
 
@@ -241,96 +242,82 @@ class _IntroScreenState extends State<IntroScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: AnimatedBuilder(
-        animation: controller,
-        builder: (context, child) {
-          final v = Curves.easeOutCubic.transform(controller.value);
-
-          return Stack(
-            alignment: Alignment.center,
-            children: [
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: IntroBackground(progress: v),
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return Center(
+              child: SingleChildScrollView(
+                physics: const ClampingScrollPhysics(),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: AnimatedBuilder(
+                    animation: Listenable.merge([controller, roarMotion]),
+                    builder: (context, child) {
+                      final v = Curves.easeOutCubic.transform(controller.value);
+                      final shake = controller.value > .18 && controller.value < .78
+                          ? math.sin(roarMotion.value * math.pi * 3) * 5.0
+                          : 0.0;
+                      final pulse = 1 + (controller.value > .18 && controller.value < .78
+                          ? (roarMotion.value.abs() * .035)
+                          : 0.0);
+                      return Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Positioned.fill(child: CustomPaint(painter: IntroBackground(progress: v))),
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Transform.translate(
+                                offset: Offset(shake, 0),
+                                child: Transform.scale(
+                                  scale: (.58 + v * .42) * pulse,
+                                  child: Opacity(
+                                    opacity: v.clamp(0.0, 1.0),
+                                    child: Container(
+                                      width: math.min(constraints.maxWidth * .78, 330).toDouble(),
+                                      height: math.min(constraints.maxHeight * .34, 245).toDouble(),
+                                      decoration: BoxDecoration(
+                                        boxShadow: [
+                                          BoxShadow(color: red.withOpacity(.18 + .18 * pulse), blurRadius: 42, spreadRadius: 8),
+                                        ],
+                                      ),
+                                      child: Image.asset(
+                                        'assets/images/130315.png',
+                                        fit: BoxFit.contain,
+                                        alignment: Alignment.center,
+                                        errorBuilder: (context, error, stack) => const CustomPaint(painter: CaracalPainter()),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Text('CARACAL', textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 38, fontWeight: FontWeight.w900, letterSpacing: 8, color: silver.withOpacity(v))),
+                              const Text('T U N I N G', style: TextStyle(color: red, fontSize: 15, letterSpacing: 8, fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 18),
+                              SizedBox(width: math.min(constraints.maxWidth * .82, 340).toDouble(), height: 150,
+                                child: AnimatedGauge(redline: true, animations: true, intro: true)),
+                              const SizedBox(height: 18),
+                              SizedBox(width: 230, height: 5,
+                                child: ClipRRect(borderRadius: BorderRadius.circular(10), child: LinearProgressIndicator(
+                                  value: v, backgroundColor: Colors.white12,
+                                  valueColor: const AlwaysStoppedAnimation<Color>(red)))),
+                              const SizedBox(height: 14),
+                              const Text('DRIVE • LEARN • UPGRADE', textAlign: TextAlign.center,
+                                style: TextStyle(color: Colors.white54, letterSpacing: 2, fontSize: 10)),
+                            ],
+                          ),
+                        ],
+                      );
+                    },
+                  ),
                 ),
               ),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Transform.scale(
-                    scale: .55 + v * .45,
-                    child: Opacity(
-                      opacity: v.clamp(0.0, 1.0),
-                      child: SizedBox(
-                        width: 250,
-                        height: 205,
-                        child: Image.asset(
-                          'assets/images/130315.png',
-                          fit: BoxFit.contain,
-                          alignment: Alignment.center,
-                          errorBuilder: (context, error, stack) =>
-                              const CustomPaint(painter: CaracalPainter()),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 15),
-                  Text(
-                    'CARACAL',
-                    style: TextStyle(
-                      fontSize: 39,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 8,
-                      color: silver.withOpacity(v),
-                    ),
-                  ),
-                  const Text(
-                    'T U N I N G',
-                    style: TextStyle(
-                      color: red,
-                      fontSize: 15,
-                      letterSpacing: 8,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 25),
-                  SizedBox(
-                    width: 310,
-                    height: 165,
-                    child: AnimatedGauge(
-                      redline: true,
-                      animations: true,
-                      intro: true,
-                    ),
-                  ),
-                  const SizedBox(height: 25),
-                  SizedBox(
-                    width: 230,
-                    height: 5,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: LinearProgressIndicator(
-                        value: v,
-                        backgroundColor: Colors.white12,
-                        valueColor:
-                            const AlwaysStoppedAnimation<Color>(red),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  const Text(
-                    'DRIVE • LEARN • UPGRADE',
-                    style: TextStyle(
-                      color: Colors.white54,
-                      letterSpacing: 2,
-                      fontSize: 10,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -1241,12 +1228,83 @@ String _lessonEnglish(String title, int index) {
 
 // LEARN
 
-class LearnScreen extends StatelessWidget {
+class LearnScreen extends StatefulWidget {
   final bool english;
-
   const LearnScreen({super.key, required this.english});
+  @override
+  State<LearnScreen> createState() => _LearnScreenState();
+}
 
+class _LearnScreenState extends State<LearnScreen> {
+  List<Map<String, dynamic>> onlineLessons = [];
+  bool loadingOnline = false;
+  String? onlineError;
+  bool get english => widget.english;
   String t(String fa, String en) => english ? en : fa;
+
+  @override
+  void initState() {
+    super.initState();
+    loadOnlineLessons();
+  }
+
+  Future<void> loadOnlineLessons() async {
+    if (!supabaseConfigured) return;
+    setState(() { loadingOnline = true; onlineError = null; });
+    try {
+      final rows = await Supabase.instance.client
+          .from('lessons')
+          .select('id,title,title_en,summary,summary_en,body,body_en,category,media_url,media_type,created_at')
+          .eq('is_published', true)
+          .order('created_at', ascending: false);
+      if (!mounted) return;
+      setState(() => onlineLessons = List<Map<String, dynamic>>.from(rows));
+    } catch (e) {
+      if (mounted) setState(() => onlineError = e.toString());
+    } finally {
+      if (mounted) setState(() => loadingOnline = false);
+    }
+  }
+
+  void openOnlineLesson(Map<String, dynamic> lesson) {
+    final title = (english ? lesson['title_en'] : lesson['title'])?.toString();
+    final body = (english ? lesson['body_en'] : lesson['body'])?.toString();
+    final mediaUrl = lesson['media_url']?.toString();
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: panel,
+        title: Text((title?.isNotEmpty == true ? title : lesson['title']?.toString()) ?? ''),
+        content: SingleChildScrollView(child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text((english ? lesson['summary_en'] : lesson['summary'])?.toString() ?? '', style: const TextStyle(color: silver)),
+            const SizedBox(height: 12),
+            Text(body?.isNotEmpty == true ? body! : (lesson['body']?.toString() ?? '')),
+            if (mediaUrl != null && mediaUrl.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              if (lesson['media_type'] == 'image') ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(mediaUrl, fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => Text(t('پیش‌نمایش تصویر در دسترس نیست.', 'Image preview unavailable.'))),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final uri = Uri.tryParse(mediaUrl);
+                  if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
+                },
+                icon: const Icon(Icons.open_in_new),
+                label: Text(t('باز کردن فایل پیوست', 'Open attachment')),
+              ),
+            ],
+          ],
+        )),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(t('بستن', 'Close')))],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1260,44 +1318,47 @@ class LearnScreen extends StatelessWidget {
       [Icons.settings_suggest, 'ساختار موتور', 'Engine Architecture'],
       [Icons.show_chart, 'مبانی جداول موتور', 'Engine Maps Basics'],
     ];
-
-    return ListView(
-      padding: const EdgeInsets.all(18),
-      children: [
-        Text(
-          t('آموزش تخصصی', 'TECHNICAL ACADEMY'),
-          style: const TextStyle(
-            fontSize: 23,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 7),
-        Text(
-          t(
-            'دانش فنی، از پایه تا پیشرفته',
-            'Automotive knowledge from basic to advanced',
-          ),
-          style: const TextStyle(
-            color: silver,
-            fontSize: 12,
-          ),
-        ),
-        const SizedBox(height: 20),
-        for (final item in items)
-          FeatureTile(
-            icon: item[0] as IconData,
-            title: t(item[1] as String, item[2] as String),
-            subtitle: t(
-              'برای مشاهده و یادگیری انتخاب کنید',
-              'Tap to open this lesson',
+    return RefreshIndicator(
+      color: red,
+      onRefresh: loadOnlineLessons,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(18),
+        children: [
+          Row(children: [
+            Expanded(child: Text(t('آموزش تخصصی', 'TECHNICAL ACADEMY'), style: const TextStyle(fontSize: 23, fontWeight: FontWeight.w900))),
+            IconButton(onPressed: loadOnlineLessons, icon: const Icon(Icons.refresh, color: silver)),
+          ]),
+          const SizedBox(height: 7),
+          Text(t('دانش فنی، از پایه تا پیشرفته', 'Automotive knowledge from basic to advanced'), style: const TextStyle(color: silver, fontSize: 12)),
+          const SizedBox(height: 18),
+          if (onlineLessons.isNotEmpty) ...[
+            Text(t('مطالب جدید منتشرشده', 'NEW PUBLISHED CONTENT'), style: const TextStyle(color: red, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 10),
+            for (final lesson in onlineLessons)
+              FeatureTile(
+                icon: Icons.auto_stories,
+                title: ((english ? lesson['title_en'] : lesson['title'])?.toString().trim().isNotEmpty == true)
+                    ? (english ? lesson['title_en'] : lesson['title']).toString()
+                    : (lesson['title']?.toString() ?? ''),
+                subtitle: ((english ? lesson['summary_en'] : lesson['summary'])?.toString() ?? ''),
+                onTap: () => openOnlineLesson(lesson),
+              ),
+            const SizedBox(height: 14),
+          ],
+          if (loadingOnline) const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(color: red))),
+          if (onlineError != null) Text(t('بارگذاری مطالب آنلاین انجام نشد: ', 'Could not load online content: ') + onlineError!, style: const TextStyle(color: Colors.orangeAccent, fontSize: 11)),
+          Text(t('آموزش‌های پایه', 'CORE LESSONS'), style: const TextStyle(fontWeight: FontWeight.w900, color: silver)),
+          const SizedBox(height: 10),
+          for (final item in items)
+            FeatureTile(
+              icon: item[0] as IconData,
+              title: t(item[1] as String, item[2] as String),
+              subtitle: t('برای مشاهده و یادگیری انتخاب کنید', 'Tap to open this lesson'),
+              onTap: () => showLesson(context, english, item[2] as String),
             ),
-            onTap: () => showLesson(
-              context,
-              english,
-              item[2] as String,
-            ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -1436,7 +1497,7 @@ class _GarageScreenState extends State<GarageScreen> {
         const SizedBox(height: 5),
         Text(t('سطح دسترسی: ', 'Role: ') + role.toUpperCase(), style: const TextStyle(color: red, fontSize: 12, fontWeight: FontWeight.bold)),
         const SizedBox(height: 12),
-        if (role == 'owner' || role == 'admin') SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CaracalAdminScreen(english: en, isOwner: role == 'owner'))), icon: const Icon(Icons.admin_panel_settings), label: Text(t('پنل مدیریت', 'ADMIN PANEL')))),
+        if (role == 'owner' || role == 'admin') SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CaracalAdminScreen(english: en, isOwner: role == 'owner', permissions: Map<String, dynamic>.from(profile?['permissions'] as Map? ?? {})))), icon: const Icon(Icons.admin_panel_settings), label: Text(t('پنل مدیریت', 'ADMIN PANEL')))),
         SizedBox(width: double.infinity, child: TextButton.icon(onPressed: signOut, icon: const Icon(Icons.logout), label: Text(t('خروج از حساب', 'SIGN OUT')))),
       ])),
       const SizedBox(height: 18),
@@ -1456,7 +1517,8 @@ class _GarageScreenState extends State<GarageScreen> {
 class CaracalAdminScreen extends StatefulWidget {
   final bool english;
   final bool isOwner;
-  const CaracalAdminScreen({super.key, required this.english, required this.isOwner});
+  final Map<String, dynamic> permissions;
+  const CaracalAdminScreen({super.key, required this.english, required this.isOwner, required this.permissions});
   @override
   State<CaracalAdminScreen> createState() => _CaracalAdminScreenState();
 }
@@ -1465,12 +1527,15 @@ class _CaracalAdminScreenState extends State<CaracalAdminScreen> {
   bool loading = true;
   String? message;
   List<Map<String, dynamic>> users = [];
+  List<Map<String, dynamic>> lessons = [];
   final email = TextEditingController();
   bool manageContent = true;
   bool publishContent = false;
   bool manageUsers = false;
   SupabaseClient get client => Supabase.instance.client;
   String t(String fa, String en) => widget.english ? en : fa;
+  bool get canManageContent => widget.isOwner || widget.permissions['manage_content'] == true;
+  bool get canPublishContent => widget.isOwner || widget.permissions['publish_content'] == true;
 
   @override
   void initState() { super.initState(); load(); }
@@ -1478,10 +1543,20 @@ class _CaracalAdminScreenState extends State<CaracalAdminScreen> {
   void dispose() { email.dispose(); super.dispose(); }
 
   Future<void> load() async {
+    if (mounted) setState(() { loading = true; message = null; });
     try {
-      final rows = await client.from('profiles').select('id,email,role,permissions,created_at').order('created_at', ascending: false);
-      if (mounted) setState(() { users = List<Map<String, dynamic>>.from(rows); loading = false; });
-    } catch (e) { if (mounted) setState(() { message = e.toString(); loading = false; }); }
+      if (widget.isOwner) {
+        final rows = await client.from('profiles').select('id,email,role,permissions,created_at').order('created_at', ascending: false);
+        users = List<Map<String, dynamic>>.from(rows);
+      }
+      if (canManageContent) {
+        final content = await client.from('lessons').select('id,title,title_en,summary,body,body_en,category,is_published,media_url,media_type,created_at').order('created_at', ascending: false);
+        lessons = List<Map<String, dynamic>>.from(content);
+      }
+      if (mounted) setState(() => loading = false);
+    } catch (e) {
+      if (mounted) setState(() { message = e.toString(); loading = false; });
+    }
   }
 
   Future<void> createAdmin() async {
@@ -1492,20 +1567,134 @@ class _CaracalAdminScreenState extends State<CaracalAdminScreen> {
       final response = await client.functions.invoke('create-admin', body: {'email': address, 'permissions': {'manage_content': manageContent, 'publish_content': publishContent, 'manage_users': manageUsers}});
       if (response.status < 200 || response.status >= 300) throw Exception(response.data.toString());
       email.clear();
-      message = t('دعوت‌نامه مدیر ارسال شد.', 'Admin invitation sent.');
+      if (mounted) setState(() => message = t('دعوت‌نامه مدیر ارسال شد.', 'Admin invitation sent.'));
       await load();
     } catch (e) { if (mounted) setState(() { message = e.toString(); loading = false; }); }
+  }
+
+  Future<void> saveAdminPermissions(String id, Map<String, dynamic> perms) async {
+    try {
+      await client.from('profiles').update({'permissions': perms}).eq('id', id).eq('role', 'admin');
+      if (mounted) setState(() => message = t('دسترسی‌های مدیر ذخیره شد.', 'Administrator permissions saved.'));
+      await load();
+    } catch (e) { if (mounted) setState(() => message = e.toString()); }
+  }
+
+  Future<void> openLessonEditor({Map<String, dynamic>? lesson}) async {
+    final title = TextEditingController(text: lesson?['title']?.toString() ?? '');
+    final titleEn = TextEditingController(text: lesson?['title_en']?.toString() ?? '');
+    final summary = TextEditingController(text: lesson?['summary']?.toString() ?? '');
+    final summaryEn = TextEditingController(text: lesson?['summary_en']?.toString() ?? '');
+    final body = TextEditingController(text: lesson?['body']?.toString() ?? '');
+    final bodyEn = TextEditingController(text: lesson?['body_en']?.toString() ?? '');
+    final category = TextEditingController(text: lesson?['category']?.toString() ?? 'general');
+    String mediaType = lesson?['media_type']?.toString() ?? 'none';
+    String? mediaUrl = lesson?['media_url']?.toString();
+    bool published = lesson?['is_published'] == true;
+    bool uploading = false;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(builder: (ctx, setDialogState) {
+        Widget field(TextEditingController c, String label, {int lines = 1, bool required = false}) => Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: TextField(controller: c, maxLines: lines, decoration: InputDecoration(labelText: label, border: const OutlineInputBorder(), isDense: true),
+            onChanged: (_) {},),
+        );
+        return AlertDialog(
+          backgroundColor: panel,
+          title: Text(lesson == null ? t('افزودن مطلب جدید', 'ADD NEW CONTENT') : t('ویرایش مطلب', 'EDIT CONTENT')),
+          content: SizedBox(width: 520, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+            field(title, t('عنوان فارسی', 'Primary title')),
+            field(titleEn, t('عنوان انگلیسی', 'English title')),
+            field(summary, t('خلاصه مطلب', 'Summary'), lines: 2),
+            field(summaryEn, t('خلاصه انگلیسی', 'English summary'), lines: 2),
+            field(category, t('دسته‌بندی', 'Category')),
+            field(body, t('متن کامل آموزش', 'Full lesson text'), lines: 5),
+            field(bodyEn, t('متن انگلیسی آموزش', 'English lesson text'), lines: 5),
+            DropdownButtonFormField<String>(value: mediaType, decoration: InputDecoration(labelText: t('نوع فایل پیوست', 'Attachment type'), border: const OutlineInputBorder()),
+              items: [DropdownMenuItem(value: 'none', child: Text(t('بدون فایل', 'No attachment'))), DropdownMenuItem(value: 'image', child: Text(t('تصویر', 'Image'))), DropdownMenuItem(value: 'video', child: Text(t('ویدئو', 'Video'))), DropdownMenuItem(value: 'document', child: Text(t('فایل آموزشی', 'Document')))],
+              onChanged: (v) => setDialogState(() => mediaType = v ?? 'none')),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: uploading ? null : () async {
+                try {
+                  final result = await FilePicker.platform.pickFiles(withData: true, type: FileType.any);
+                  if (result == null || result.files.single.bytes == null) return;
+                  final file = result.files.single;
+                  final ext = (file.extension ?? 'bin').toLowerCase();
+                  final path = '${DateTime.now().millisecondsSinceEpoch}_${file.name.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_')}';
+                  setDialogState(() => uploading = true);
+                  final contentType = _mediaContentType(ext);
+                  await client.storage.from('lesson-media').uploadBinary(path, file.bytes!, fileOptions: FileOptions(contentType: contentType, upsert: true));
+                  mediaUrl = client.storage.from('lesson-media').getPublicUrl(path);
+                  if (mediaType == 'none') mediaType = _guessMediaType(ext);
+                  setDialogState(() => uploading = false);
+                } catch (e) {
+                  setDialogState(() => uploading = false);
+                  if (mounted) setState(() => message = '${t('بارگذاری فایل ناموفق بود: ', 'File upload failed: ')}$e');
+                }
+              },
+              icon: uploading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.upload_file),
+              label: Text(uploading ? t('در حال بارگذاری...', 'Uploading...') : t('انتخاب و بارگذاری فایل', 'Choose and upload file')),
+            ),
+            if (mediaUrl != null && mediaUrl!.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 8), child: SelectableText(mediaUrl!, style: const TextStyle(color: silver, fontSize: 10))),
+            if (canPublishContent) SwitchListTile(contentPadding: EdgeInsets.zero, value: published, activeColor: red, title: Text(t('انتشار مطلب', 'Publish content')), onChanged: (v) => setDialogState(() => published = v)),
+            if (!canPublishContent) Padding(padding: const EdgeInsets.only(top: 8), child: Text(t('این حساب فقط می‌تواند پیش‌نویس ذخیره کند؛ انتشار نیازمند مجوز Owner است.', 'This account can save drafts only; publishing requires permission.'), style: const TextStyle(color: Colors.orangeAccent, fontSize: 11))),
+          ]))),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(t('انصراف', 'Cancel'))),
+            FilledButton(onPressed: uploading ? null : () async {
+              if (title.text.trim().isEmpty || body.text.trim().isEmpty) {
+                setDialogState(() {});
+                setState(() => message = t('عنوان و متن آموزش الزامی است.', 'Title and lesson body are required.'));
+                return;
+              }
+              if (published && !canPublishContent) return;
+              try {
+                final values = {
+                  'title': title.text.trim(), 'title_en': titleEn.text.trim(),
+                  'summary': summary.text.trim(), 'summary_en': summaryEn.text.trim(),
+                  'body': body.text.trim(), 'body_en': bodyEn.text.trim(),
+                  'category': category.text.trim().isEmpty ? 'general' : category.text.trim(),
+                  'media_url': mediaUrl, 'media_type': mediaType,
+                  'is_published': published,
+                };
+                if (lesson == null) {
+                  values['created_by'] = client.auth.currentUser!.id;
+                  await client.from('lessons').insert(values);
+                } else {
+                  await client.from('lessons').update(values).eq('id', lesson['id']);
+                }
+                if (mounted) Navigator.pop(dialogContext);
+                await load();
+              } catch (e) {
+                if (mounted) setState(() => message = e.toString());
+              }
+            }, child: Text(t('ذخیره مطلب', 'SAVE CONTENT'))),
+          ],
+        );
+      }),
+    );
+    title.dispose(); titleEn.dispose(); summary.dispose(); summaryEn.dispose(); body.dispose(); bodyEn.dispose(); category.dispose();
+  }
+
+  Future<void> deleteLesson(Map<String, dynamic> lesson) async {
+    try {
+      await client.from('lessons').delete().eq('id', lesson['id']);
+      await load();
+    } catch (e) { if (mounted) setState(() => message = e.toString()); }
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: bg,
-    appBar: AppBar(backgroundColor: bg, title: Text(t('پنل مدیریت کاراکال', 'CARACAL ADMIN'))),
+    appBar: AppBar(backgroundColor: bg, title: Text(t('پنل مدیریت کاراکال', 'CARACAL ADMIN')), actions: [IconButton(onPressed: load, icon: const Icon(Icons.refresh))]),
     body: ListView(padding: const EdgeInsets.all(18), children: [
-      if (widget.isOwner) Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: red.withOpacity(.12), borderRadius: BorderRadius.circular(12), border: Border.all(color: red.withOpacity(.4))), child: Text(t('حساب مالک اصلی: اختیار نهایی مدیریت مدیران و دسترسی‌ها فقط با مالک است.', 'Owner account: only the owner has final authority over administrators and permissions.'), style: const TextStyle(fontSize: 12))),
-      if (widget.isOwner) const SizedBox(height: 14),
+      Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: red.withOpacity(.12), borderRadius: BorderRadius.circular(12), border: Border.all(color: red.withOpacity(.4))), child: Text(widget.isOwner ? t('OWNER — مالک اصلی و مرجع نهایی اختیار است. فقط Owner می‌تواند مدیر بسازد و سطح دسترسی مدیران را تغییر دهد.', 'OWNER — The root account has final authority. Only the Owner can create administrators and change their permissions.') : t('ADMIN — دسترسی این حساب فقط بر اساس مجوزهایی است که مالک تعیین کرده است.', 'ADMIN — This account is limited to permissions assigned by the Owner.'), style: const TextStyle(fontSize: 12))),
+      const SizedBox(height: 14),
       if (widget.isOwner) Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: panel, borderRadius: BorderRadius.circular(14)), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Text(t('افزودن مدیر جدید', 'INVITE NEW ADMIN'), style: const TextStyle(fontWeight: FontWeight.bold)),
+        Text(t('دعوت مدیر جدید', 'INVITE NEW ADMIN'), style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 12),
         TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: InputDecoration(labelText: t('ایمیل مدیر', 'Admin email'), border: const OutlineInputBorder())),
         CheckboxListTile(contentPadding: EdgeInsets.zero, value: manageContent, onChanged: (v) => setState(() => manageContent = v ?? false), title: Text(t('مدیریت محتوا', 'Manage content'))),
@@ -1513,13 +1702,76 @@ class _CaracalAdminScreenState extends State<CaracalAdminScreen> {
         CheckboxListTile(contentPadding: EdgeInsets.zero, value: manageUsers, onChanged: (v) => setState(() => manageUsers = v ?? false), title: Text(t('مدیریت کاربران', 'Manage users'))),
         FilledButton(onPressed: loading ? null : createAdmin, child: Text(t('ارسال دعوت‌نامه', 'SEND INVITATION'))),
       ])),
-      const SizedBox(height: 18),
-      Text(t('کاربران و مدیران', 'USERS & ADMINS'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+      if (widget.isOwner) const SizedBox(height: 18),
+      if (widget.isOwner) Text(t('مدیریت مدیران و دسترسی‌ها', 'ADMINISTRATORS & PERMISSIONS'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+      if (widget.isOwner) ...users.where((u) => u['role'] == 'owner' || u['role'] == 'admin').map((u) => _AdminPermissionTile(user: u, english: widget.english, onSave: (perms) => saveAdminPermissions(u['id'].toString(), perms))),
+      if (canManageContent) ...[
+        const SizedBox(height: 22),
+        Row(children: [Expanded(child: Text(t('مدیریت مطالب آموزشی', 'LEARNING CONTENT MANAGER'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16))), IconButton(onPressed: () => openLessonEditor(), icon: const Icon(Icons.add_circle, color: red, size: 30))]),
+        SizedBox(width: double.infinity, child: FilledButton.icon(onPressed: () => openLessonEditor(), icon: const Icon(Icons.post_add), label: Text(t('افزودن مطلب جدید', 'ADD NEW CONTENT')))),
+        const SizedBox(height: 10),
+        if (lessons.isEmpty) Text(t('هنوز مطلبی ثبت نشده است.', 'No content has been added yet.'), style: const TextStyle(color: silver)),
+        ...lessons.map((lesson) => Card(color: panel, child: ListTile(
+          leading: Icon(lesson['is_published'] == true ? Icons.public : Icons.edit_note, color: lesson['is_published'] == true ? Colors.greenAccent : silver),
+          title: Text(lesson['title']?.toString() ?? ''),
+          subtitle: Text('${lesson['category'] ?? 'general'} • ${lesson['is_published'] == true ? t('منتشرشده', 'Published') : t('پیش‌نویس', 'Draft')}'),
+          trailing: PopupMenuButton<String>(onSelected: (v) { if (v == 'edit') openLessonEditor(lesson: lesson); if (v == 'delete') deleteLesson(lesson); }, itemBuilder: (_) => [PopupMenuItem(value: 'edit', child: Text(t('ویرایش', 'Edit'))), PopupMenuItem(value: 'delete', child: Text(t('حذف', 'Delete')))]),
+          onTap: () => openLessonEditor(lesson: lesson),
+        ))),
+      ],
       if (loading) const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: red))),
-      ...users.map((u) => Card(color: panel, child: ListTile(leading: Icon(u['role'] == 'owner' ? Icons.shield : u['role'] == 'admin' ? Icons.admin_panel_settings : Icons.person, color: u['role'] == 'owner' ? red : silver), title: Text(u['email']?.toString() ?? u['id'].toString()), subtitle: Text((u['role'] ?? 'user').toString().toUpperCase() + (u['role'] == 'admin' ? ' • ${(u['permissions'] as Map? ?? {}).entries.where((e) => e.value == true).map((e) => e.key).join(', ')}' : ''))))),
-      if (message != null) Padding(padding: const EdgeInsets.all(12), child: Text(message!, style: const TextStyle(color: silver))),
+      if (message != null) Padding(padding: const EdgeInsets.all(12), child: SelectableText(message!, style: const TextStyle(color: silver))),
     ]),
   );
+}
+
+class _AdminPermissionTile extends StatefulWidget {
+  final Map<String, dynamic> user;
+  final bool english;
+  final Future<void> Function(Map<String, dynamic>) onSave;
+  const _AdminPermissionTile({required this.user, required this.english, required this.onSave});
+  @override
+  State<_AdminPermissionTile> createState() => _AdminPermissionTileState();
+}
+class _AdminPermissionTileState extends State<_AdminPermissionTile> {
+  late bool manageContent;
+  late bool publishContent;
+  late bool manageUsers;
+  @override
+  void initState() {
+    super.initState();
+    final p = widget.user['permissions'] as Map? ?? {};
+    manageContent = p['manage_content'] == true;
+    publishContent = p['publish_content'] == true;
+    manageUsers = p['manage_users'] == true;
+  }
+  @override
+  Widget build(BuildContext context) {
+    final en = widget.english;
+    return Card(color: panel, child: ExpansionTile(
+      leading: Icon(widget.user['role'] == 'owner' ? Icons.shield : Icons.admin_panel_settings, color: widget.user['role'] == 'owner' ? red : silver),
+      title: Text(widget.user['email']?.toString() ?? widget.user['id'].toString()),
+      subtitle: Text((widget.user['role'] ?? '').toString().toUpperCase()),
+      children: [
+        if (widget.user['role'] == 'admin') ...[
+          CheckboxListTile(value: manageContent, onChanged: (v) => setState(() => manageContent = v ?? false), title: Text(en ? 'Manage content' : 'مدیریت محتوا')),
+          CheckboxListTile(value: publishContent, onChanged: (v) => setState(() => publishContent = v ?? false), title: Text(en ? 'Publish content' : 'انتشار محتوا')),
+          CheckboxListTile(value: manageUsers, onChanged: (v) => setState(() => manageUsers = v ?? false), title: Text(en ? 'Manage users' : 'مدیریت کاربران')),
+          Padding(padding: const EdgeInsets.all(12), child: FilledButton(onPressed: () => widget.onSave({'manage_content': manageContent, 'publish_content': publishContent, 'manage_users': manageUsers}), child: Text(en ? 'Save permissions' : 'ذخیره دسترسی‌ها'))),
+        ] else Padding(padding: const EdgeInsets.all(12), child: Text(en ? 'Root owner account — protected role.' : 'حساب مالک اصلی — نقش محافظت‌شده.')),
+      ],
+    ));
+  }
+}
+
+String _guessMediaType(String ext) {
+  if (['jpg','jpeg','png','webp','gif'].contains(ext)) return 'image';
+  if (['mp4','mov','webm','m4v'].contains(ext)) return 'video';
+  return 'document';
+}
+String _mediaContentType(String ext) {
+  const types = {'jpg':'image/jpeg','jpeg':'image/jpeg','png':'image/png','webp':'image/webp','gif':'image/gif','mp4':'video/mp4','mov':'video/quicktime','webm':'video/webm','pdf':'application/pdf','doc':'application/msword','docx':'application/vnd.openxmlformats-officedocument.wordprocessingml.document','zip':'application/zip'};
+  return types[ext] ?? 'application/octet-stream';
 }
 
 
@@ -1527,7 +1779,6 @@ class _CaracalAdminScreenState extends State<CaracalAdminScreen> {
 
 class SettingsScreen extends StatelessWidget {
   final bool english;
-  final bool engineSound;
   final bool animations;
   final bool redline;
   final bool haptics;
@@ -1536,7 +1787,6 @@ class SettingsScreen extends StatelessWidget {
   const SettingsScreen({
     super.key,
     required this.english,
-    required this.engineSound,
     required this.animations,
     required this.redline,
     required this.haptics,
@@ -1580,14 +1830,7 @@ class SettingsScreen extends StatelessWidget {
           Icons.brightness_high,
         ),
         const SizedBox(height: 12),
-        section(t('صدا و بازخورد', 'SOUND & FEEDBACK')),
-        settingSwitch(
-          t('صدای موتور و غرش کاراکال', 'Engine & Caracal Sound'),
-          t('صدای آغاز برنامه', 'Intro sound effects'),
-          engineSound,
-          (v) => onChange('engineSound', v),
-          Icons.volume_up,
-        ),
+        section(t('بازخورد لمسی', 'HAPTIC FEEDBACK')),
         settingSwitch(
           t('بازخورد لمسی', 'Haptic Feedback'),
           t('لرزش هنگام لمس کنترل‌ها', 'Touch feedback'),
