@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,39 +24,57 @@ class CaracalApp extends StatefulWidget {
 
 class _CaracalAppState extends State<CaracalApp> {
   bool english = false;
-  bool haptics = true;
-  bool redline = true;
-  bool animations = true;
   bool engineSound = true;
-  bool compact = false;
-  int selectedTab = 0;
+  bool animations = true;
+  bool redline = true;
+  bool haptics = true;
+  int tab = 0;
   bool ready = false;
 
   @override
   void initState() {
     super.initState();
-    _loadSettings();
-    Future.delayed(const Duration(milliseconds: 3200), () {
+    loadSettings();
+    Future.delayed(const Duration(milliseconds: 4200), () {
       if (mounted) setState(() => ready = true);
     });
   }
 
-  Future<void> _loadSettings() async {
+  Future<void> loadSettings() async {
     final p = await SharedPreferences.getInstance();
     if (!mounted) return;
     setState(() {
       english = p.getBool('english') ?? false;
-      haptics = p.getBool('haptics') ?? true;
-      redline = p.getBool('redline') ?? true;
-      animations = p.getBool('animations') ?? true;
       engineSound = p.getBool('engineSound') ?? true;
-      compact = p.getBool('compact') ?? false;
+      animations = p.getBool('animations') ?? true;
+      redline = p.getBool('redline') ?? true;
+      haptics = p.getBool('haptics') ?? true;
     });
   }
 
   Future<void> save(String key, bool value) async {
     final p = await SharedPreferences.getInstance();
     await p.setBool(key, value);
+    if (!mounted) return;
+    setState(() {
+      switch (key) {
+        case 'english':
+          english = value;
+          break;
+        case 'engineSound':
+          engineSound = value;
+          break;
+        case 'animations':
+          animations = value;
+          break;
+        case 'redline':
+          redline = value;
+          break;
+        case 'haptics':
+          haptics = value;
+          break;
+      }
+    });
   }
 
   String t(String fa, String en) => english ? en : fa;
@@ -72,108 +91,81 @@ class _CaracalAppState extends State<CaracalApp> {
           primary: red,
           surface: panel,
         ),
-        fontFamily: 'Roboto',
         useMaterial3: true,
       ),
-      home: ready ? _mainScreen() : const IntroScreen(),
-    );
-  }
-
-  Widget _mainScreen() {
-    final pages = [
-      HomeScreen(
-        english: english,
-        compact: compact,
-        redline: redline,
-        animations: animations,
-        onNavigate: (i) => setState(() => selectedTab = i),
-      ),
-      LearnScreen(english: english),
-      GarageScreen(english: english),
-      SettingsScreen(
-        english: english,
-        haptics: haptics,
-        redline: redline,
-        animations: animations,
-        engineSound: engineSound,
-        compact: compact,
-        onChange: (key, value) async {
-          await save(key, value);
-          setState(() {
-            switch (key) {
-              case 'english':
-                english = value;
-                break;
-              case 'haptics':
-                haptics = value;
-                break;
-              case 'redline':
-                redline = value;
-                break;
-              case 'animations':
-                animations = value;
-                break;
-              case 'engineSound':
-                engineSound = value;
-                break;
-              case 'compact':
-                compact = value;
-                break;
-            }
-          });
-        },
-      ),
-    ];
-
-    return Directionality(
-      textDirection: english ? TextDirection.ltr : TextDirection.rtl,
-      child: Scaffold(
-        body: SafeArea(
-          child: IndexedStack(
-            index: selectedTab,
-            children: pages,
-          ),
-        ),
-        bottomNavigationBar: NavigationBar(
-          backgroundColor: const Color(0xFF101114),
-          indicatorColor: red.withOpacity(.18),
-          selectedIndex: selectedTab,
-          onDestinationSelected: (i) {
-            if (haptics) HapticFeedback.selectionClick();
-            setState(() => selectedTab = i);
-          },
-          destinations: [
-            NavigationDestination(
-              icon: const Icon(Icons.dashboard_outlined),
-              selectedIcon: const Icon(Icons.dashboard, color: red),
-              label: t('خانه', 'Home'),
-            ),
-            NavigationDestination(
-              icon: const Icon(Icons.school_outlined),
-              selectedIcon: const Icon(Icons.school, color: red),
-              label: t('آموزش', 'Learn'),
-            ),
-            NavigationDestination(
-              icon: const Icon(Icons.directions_car_outlined),
-              selectedIcon: const Icon(Icons.directions_car, color: red),
-              label: t('گاراژ', 'Garage'),
-            ),
-            NavigationDestination(
-              icon: const Icon(Icons.tune_outlined),
-              selectedIcon: const Icon(Icons.tune, color: red),
-              label: t('تنظیمات', 'Control'),
-            ),
-          ],
-        ),
-      ),
+      home: ready
+          ? Directionality(
+              textDirection:
+                  english ? TextDirection.ltr : TextDirection.rtl,
+              child: Scaffold(
+                body: SafeArea(
+                  child: IndexedStack(
+                    index: tab,
+                    children: [
+                      HomeScreen(
+                        english: english,
+                        redline: redline,
+                        animations: animations,
+                        onNavigate: (i) => setState(() => tab = i),
+                      ),
+                      LearnScreen(english: english),
+                      GarageScreen(english: english),
+                      SettingsScreen(
+                        english: english,
+                        engineSound: engineSound,
+                        animations: animations,
+                        redline: redline,
+                        haptics: haptics,
+                        onChange: save,
+                      ),
+                    ],
+                  ),
+                ),
+                bottomNavigationBar: NavigationBar(
+                  backgroundColor: const Color(0xFF101114),
+                  indicatorColor: red.withOpacity(.2),
+                  selectedIndex: tab,
+                  onDestinationSelected: (i) {
+                    if (haptics) HapticFeedback.selectionClick();
+                    setState(() => tab = i);
+                  },
+                  destinations: [
+                    NavigationDestination(
+                      icon: const Icon(Icons.dashboard_outlined),
+                      selectedIcon: const Icon(Icons.dashboard, color: red),
+                      label: t('خانه', 'Home'),
+                    ),
+                    NavigationDestination(
+                      icon: const Icon(Icons.school_outlined),
+                      selectedIcon: const Icon(Icons.school, color: red),
+                      label: t('آموزش', 'Learn'),
+                    ),
+                    NavigationDestination(
+                      icon: const Icon(Icons.directions_car_outlined),
+                      selectedIcon:
+                          const Icon(Icons.directions_car, color: red),
+                      label: t('گاراژ', 'Garage'),
+                    ),
+                    NavigationDestination(
+                      icon: const Icon(Icons.tune_outlined),
+                      selectedIcon: const Icon(Icons.tune, color: red),
+                      label: t('تنظیمات', 'Settings'),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : IntroScreen(engineSound: engineSound),
     );
   }
 }
 
-// ---------------- INTRO ----------------
+// INTRO
 
 class IntroScreen extends StatefulWidget {
-  const IntroScreen({super.key});
+  final bool engineSound;
+
+  const IntroScreen({super.key, required this.engineSound});
 
   @override
   State<IntroScreen> createState() => _IntroScreenState();
@@ -182,18 +174,52 @@ class IntroScreen extends StatefulWidget {
 class _IntroScreenState extends State<IntroScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController controller;
+  final AudioPlayer enginePlayer = AudioPlayer();
+  final AudioPlayer roarPlayer = AudioPlayer();
+  Timer? roarTimer;
 
   @override
   void initState() {
     super.initState();
+
     controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2600),
+      duration: const Duration(milliseconds: 4000),
     )..forward();
+
+    if (widget.engineSound) {
+      playIntroSounds();
+    }
+  }
+
+  Future<void> playIntroSounds() async {
+    try {
+      await enginePlayer.setVolume(1);
+      await roarPlayer.setVolume(1);
+
+      await enginePlayer.play(
+        AssetSource('Pagani-Zonda (2).mp3'),
+      );
+
+      roarTimer = Timer(
+        const Duration(milliseconds: 1700),
+        () async {
+          if (!mounted) return;
+          try {
+            await roarPlayer.play(
+              AssetSource('Caracal (1).mp3'),
+            );
+          } catch (_) {}
+        },
+      );
+    } catch (_) {}
   }
 
   @override
   void dispose() {
+    roarTimer?.cancel();
+    enginePlayer.dispose();
+    roarPlayer.dispose();
     controller.dispose();
     super.dispose();
   }
@@ -206,59 +232,64 @@ class _IntroScreenState extends State<IntroScreen>
         animation: controller,
         builder: (context, child) {
           final v = Curves.easeOutCubic.transform(controller.value);
+
           return Stack(
             alignment: Alignment.center,
             children: [
               Positioned.fill(
                 child: CustomPaint(
-                  painter: IntroLinesPainter(progress: v),
+                  painter: IntroBackground(progress: v),
                 ),
               ),
               Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Transform.scale(
-                    scale: .65 + v * .35,
+                    scale: .55 + v * .45,
                     child: Opacity(
-                      opacity: v.clamp(0, 1),
+                      opacity: v.clamp(0.0, 1.0),
                       child: const SizedBox(
-                        width: 230,
-                        height: 190,
+                        width: 260,
+                        height: 210,
                         child: CustomPaint(painter: CaracalPainter()),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 15),
                   Text(
                     'CARACAL',
                     style: TextStyle(
-                      fontSize: 37,
+                      fontSize: 39,
                       fontWeight: FontWeight.w900,
-                      letterSpacing: 7,
+                      letterSpacing: 8,
                       color: silver.withOpacity(v),
                     ),
                   ),
                   const Text(
                     'T U N I N G',
                     style: TextStyle(
+                      color: red,
                       fontSize: 15,
                       letterSpacing: 8,
-                      color: red,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 25),
                   SizedBox(
-                    width: 270,
-                    height: 142,
-                    child: AnimatedGauge(redline: true, animations: true),
+                    width: 310,
+                    height: 165,
+                    child: AnimatedGauge(
+                      redline: true,
+                      animations: true,
+                      intro: true,
+                    ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 25),
                   SizedBox(
-                    width: 220,
-                    height: 7,
+                    width: 230,
+                    height: 5,
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                       child: LinearProgressIndicator(
                         value: v,
                         backgroundColor: Colors.white12,
@@ -267,13 +298,13 @@ class _IntroScreenState extends State<IntroScreen>
                       ),
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 18),
                   const Text(
                     'DRIVE • LEARN • UPGRADE',
                     style: TextStyle(
                       color: Colors.white54,
-                      fontSize: 10,
                       letterSpacing: 2,
+                      fontSize: 10,
                     ),
                   ),
                 ],
@@ -286,32 +317,35 @@ class _IntroScreenState extends State<IntroScreen>
   }
 }
 
-class IntroLinesPainter extends CustomPainter {
+class IntroBackground extends CustomPainter {
   final double progress;
-  IntroLinesPainter({required this.progress});
+  IntroBackground({required this.progress});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final p = Paint()
-      ..color = red.withOpacity(.12)
+    final line = Paint()
+      ..color = red.withOpacity(.13)
       ..strokeWidth = 1;
 
-    for (int i = 0; i < 12; i++) {
-      final y = size.height * (i / 12);
+    for (int i = 0; i < 18; i++) {
+      final y = size.height * i / 18;
       canvas.drawLine(
-        Offset(0, y + progress * 30),
-        Offset(size.width, y - progress * 30),
-        p,
+        Offset(0, y + progress * 35),
+        Offset(size.width, y - progress * 35),
+        line,
       );
     }
 
     final glow = Paint()
       ..shader = RadialGradient(
-        colors: [red.withOpacity(.15), Colors.transparent],
+        colors: [
+          red.withOpacity(.2),
+          Colors.transparent,
+        ],
       ).createShader(
         Rect.fromCircle(
           center: Offset(size.width / 2, size.height / 2),
-          radius: size.width * .7,
+          radius: size.width * .8,
         ),
       );
 
@@ -319,14 +353,13 @@ class IntroLinesPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant IntroLinesPainter oldDelegate) => true;
+  bool shouldRepaint(covariant IntroBackground oldDelegate) => true;
 }
 
-// ---------------- HOME ----------------
+// HOME
 
 class HomeScreen extends StatelessWidget {
   final bool english;
-  final bool compact;
   final bool redline;
   final bool animations;
   final ValueChanged<int> onNavigate;
@@ -334,7 +367,6 @@ class HomeScreen extends StatelessWidget {
   const HomeScreen({
     super.key,
     required this.english,
-    required this.compact,
     required this.redline,
     required this.animations,
     required this.onNavigate,
@@ -345,13 +377,13 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
+      padding: const EdgeInsets.all(18),
       children: [
         Row(
           children: [
             const SizedBox(
-              width: 52,
-              height: 48,
+              width: 58,
+              height: 52,
               child: CustomPaint(painter: CaracalPainter()),
             ),
             const SizedBox(width: 12),
@@ -380,7 +412,10 @@ class HomeScreen extends StatelessWidget {
             ),
             IconButton(
               onPressed: () {},
-              icon: const Icon(Icons.notifications_none, color: silver),
+              icon: const Icon(
+                Icons.notifications_none,
+                color: silver,
+              ),
             ),
           ],
         ),
@@ -389,7 +424,7 @@ class HomeScreen extends StatelessWidget {
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             color: panel,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(color: Colors.white10),
           ),
           child: Column(
@@ -400,30 +435,29 @@ class HomeScreen extends StatelessWidget {
                     child: Text(
                       t('آماده‌ای؟', 'READY TO DRIVE?'),
                       style: const TextStyle(
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        fontSize: 17,
                       ),
                     ),
                   ),
-                  const Icon(Icons.bolt, color: red, size: 25),
+                  const Icon(Icons.bolt, color: red, size: 27),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               SizedBox(
-                height: 210,
+                height: 220,
                 child: AnimatedGauge(
                   redline: redline,
                   animations: animations,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Text(
-                t('قدرت را بشناس؛ دقیق‌تر تنظیم کن',
-                    'Understand power. Tune smarter.'),
-                style: const TextStyle(
-                  color: silver,
-                  fontSize: 12,
+                t(
+                  'قدرت را بشناس؛ دقیق‌تر تنظیم کن',
+                  'Understand power. Tune smarter.',
                 ),
+                style: const TextStyle(color: silver, fontSize: 12),
               ),
             ],
           ),
@@ -432,7 +466,7 @@ class HomeScreen extends StatelessWidget {
         Text(
           t('دسترسی سریع', 'QUICK ACCESS'),
           style: const TextStyle(
-            fontSize: 16,
+            fontSize: 17,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -443,7 +477,7 @@ class HomeScreen extends StatelessWidget {
           physics: const NeverScrollableScrollPhysics(),
           mainAxisSpacing: 12,
           crossAxisSpacing: 12,
-          childAspectRatio: 1.55,
+          childAspectRatio: 1.45,
           children: [
             QuickCard(
               icon: Icons.school,
@@ -466,16 +500,16 @@ class HomeScreen extends StatelessWidget {
             QuickCard(
               icon: Icons.settings,
               title: t('مرکز کنترل', 'Control Center'),
-              subtitle: t('شخصی‌سازی برنامه', 'App customization'),
+              subtitle: t('تنظیمات برنامه', 'App settings'),
               onTap: () => onNavigate(3),
             ),
           ],
         ),
         const SizedBox(height: 25),
         Text(
-          t('آخرین بخش‌ها', 'FEATURED TOPICS'),
+          t('موضوعات منتخب', 'FEATURED TOPICS'),
           style: const TextStyle(
-            fontSize: 16,
+            fontSize: 17,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -483,20 +517,26 @@ class HomeScreen extends StatelessWidget {
         FeatureTile(
           icon: Icons.speed,
           title: t('اصول عملکرد موتور', 'Engine Fundamentals'),
-          subtitle: t('آشنایی با پارامترهای اصلی موتور',
-              'Understanding core engine parameters'),
+          subtitle: t(
+            'آشنایی با پارامترهای اصلی موتور',
+            'Understanding core engine parameters',
+          ),
         ),
         FeatureTile(
           icon: Icons.developer_board,
           title: t('آشنایی با ECU', 'Getting to Know ECU'),
-          subtitle: t('ساختار و وظایف واحد کنترل موتور',
-              'Engine control unit architecture'),
+          subtitle: t(
+            'ساختار و وظایف واحد کنترل موتور',
+            'Engine control unit architecture',
+          ),
         ),
         FeatureTile(
-          icon: Icons.analytics_outlined,
+          icon: Icons.analytics,
           title: t('مبانی تحلیل داده', 'Data Analysis Basics'),
-          subtitle: t('شناخت داده‌ها و پارامترهای خودرو',
-              'Understanding vehicle data'),
+          subtitle: t(
+            'شناخت داده‌ها و پارامترهای خودرو',
+            'Understanding vehicle data',
+          ),
         ),
       ],
     );
@@ -521,20 +561,20 @@ class QuickCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(15),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: panel,
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Colors.white10),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: red, size: 25),
-            const SizedBox(height: 9),
+            Icon(icon, color: red, size: 27),
+            const SizedBox(height: 10),
             Text(
               title,
               style: const TextStyle(
@@ -573,21 +613,23 @@ class FeatureTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: panel,
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         children: [
-          Icon(icon, color: red, size: 26),
+          Icon(icon, color: red, size: 27),
           const SizedBox(width: 13),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
@@ -606,16 +648,18 @@ class FeatureTile extends StatelessWidget {
   }
 }
 
-// ---------------- RPM GAUGE ----------------
+// RPM GAUGE
 
 class AnimatedGauge extends StatefulWidget {
   final bool redline;
   final bool animations;
+  final bool intro;
 
   const AnimatedGauge({
     super.key,
     required this.redline,
     required this.animations,
+    this.intro = false,
   });
 
   @override
@@ -630,25 +674,36 @@ class _AnimatedGaugeState extends State<AnimatedGauge>
   @override
   void initState() {
     super.initState();
+
     controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 3200),
+      duration: Duration(
+        milliseconds: widget.intro ? 4000 : 3200,
+      ),
     );
 
     rpm = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween<double>(begin: 500.0, end: 7900.0)
-            .chain(CurveTween(curve: Curves.easeOutCubic)),
+        tween: Tween<double>(
+          begin: 500,
+          end: 8000,
+        ).chain(
+          CurveTween(curve: Curves.easeOutCubic),
+        ),
         weight: 72,
       ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: 7900.0, end: 850.0)
-            .chain(CurveTween(curve: Curves.easeInOut)),
+        tween: Tween<double>(
+          begin: 8000,
+          end: 900,
+        ).chain(
+          CurveTween(curve: Curves.easeInOut),
+        ),
         weight: 28,
       ),
     ]).animate(controller);
 
-    if (widget.animations) {
+    if (widget.animations || widget.intro) {
       controller.repeat();
     } else {
       controller.value = .65;
@@ -658,6 +713,7 @@ class _AnimatedGaugeState extends State<AnimatedGauge>
   @override
   void didUpdateWidget(covariant AnimatedGauge oldWidget) {
     super.didUpdateWidget(oldWidget);
+
     if (widget.animations && !controller.isAnimating) {
       controller.repeat();
     } else if (!widget.animations && controller.isAnimating) {
@@ -705,74 +761,90 @@ class GaugePainter extends CustomPainter {
     const start = math.pi * 1.12;
     const sweep = math.pi * .76;
 
-    final base = Paint()
-      ..color = Colors.white12
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 13
-      ..strokeCap = StrokeCap.round;
+    final rect = Rect.fromCircle(
+      center: center,
+      radius: radius,
+    );
 
     canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
+      rect,
       start,
       sweep,
       false,
-      base,
+      Paint()
+        ..color = Colors.white12
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 14
+        ..strokeCap = StrokeCap.round,
     );
 
-    final active = Paint()
-      ..shader = const SweepGradient(
-        colors: [silver, Colors.white, red],
-        stops: [0, .72, 1],
-      ).createShader(Rect.fromCircle(center: center, radius: radius))
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 13
-      ..strokeCap = StrokeCap.round;
-
     canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
+      rect,
       start,
-      sweep * (value / 8000).clamp(0, 1),
+      sweep * (value / 8000).clamp(0.0, 1.0),
       false,
-      active,
+      Paint()
+        ..shader = const SweepGradient(
+          colors: [
+            silver,
+            Colors.white,
+            red,
+          ],
+          stops: [0, .72, 1],
+        ).createShader(rect)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 14
+        ..strokeCap = StrokeCap.round,
     );
 
     if (redline && value > 6500) {
-      final redGlow = Paint()
-        ..color = red.withOpacity(.28)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 23
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 13);
       canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
+        rect,
         start + sweep * .78,
         sweep * .22,
         false,
-        redGlow,
+        Paint()
+          ..color = red.withOpacity(.45)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 24
+          ..maskFilter = const MaskFilter.blur(
+            BlurStyle.normal,
+            13,
+          ),
       );
     }
 
-    final tickPaint = Paint()
-      ..color = silver
-      ..strokeWidth = 2;
-
     for (int i = 0; i <= 40; i++) {
       final angle = start + sweep * i / 40;
+
       final outer = Offset(
         center.dx + math.cos(angle) * (radius + 12),
         center.dy + math.sin(angle) * (radius + 12),
       );
+
       final inner = Offset(
-        center.dx + math.cos(angle) * (radius - (i % 5 == 0 ? 12 : 6)),
-        center.dy + math.sin(angle) * (radius - (i % 5 == 0 ? 12 : 6)),
+        center.dx +
+            math.cos(angle) *
+                (radius - (i % 5 == 0 ? 13 : 6)),
+        center.dy +
+            math.sin(angle) *
+                (radius - (i % 5 == 0 ? 13 : 6)),
       );
 
-      tickPaint.color =
-          i >= 34 && redline ? red : silver.withOpacity(.75);
-      canvas.drawLine(inner, outer, tickPaint);
+      canvas.drawLine(
+        inner,
+        outer,
+        Paint()
+          ..color = i >= 34 && redline
+              ? red
+              : silver.withOpacity(.75)
+          ..strokeWidth = i % 5 == 0 ? 2.5 : 1.3,
+      );
     }
 
     for (int i = 0; i <= 8; i++) {
       final angle = start + sweep * i / 8;
+
       final pos = Offset(
         center.dx + math.cos(angle) * (radius - 30),
         center.dy + math.sin(angle) * (radius - 30),
@@ -790,10 +862,15 @@ class GaugePainter extends CustomPainter {
         textDirection: TextDirection.ltr,
       )..layout();
 
-      tp.paint(canvas, pos - Offset(tp.width / 2, tp.height / 2));
+      tp.paint(
+        canvas,
+        pos - Offset(tp.width / 2, tp.height / 2),
+      );
     }
 
-    final needleAngle = start + sweep * (value / 8000).clamp(0, 1);
+    final needleAngle =
+        start + sweep * (value / 8000).clamp(0.0, 1.0);
+
     final needleEnd = Offset(
       center.dx + math.cos(needleAngle) * (radius - 22),
       center.dy + math.sin(needleAngle) * (radius - 22),
@@ -804,10 +881,13 @@ class GaugePainter extends CustomPainter {
         center,
         needleEnd,
         Paint()
-          ..color = red.withOpacity(.4)
-          ..strokeWidth = 20
+          ..color = red.withOpacity(.45)
+          ..strokeWidth = 22
           ..strokeCap = StrokeCap.round
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 16),
+          ..maskFilter = const MaskFilter.blur(
+            BlurStyle.normal,
+            15,
+          ),
       );
     }
 
@@ -822,9 +902,10 @@ class GaugePainter extends CustomPainter {
 
     canvas.drawCircle(
       center,
-      10,
+      11,
       Paint()..color = const Color(0xFF555B63),
     );
+
     canvas.drawCircle(
       center,
       5,
@@ -838,7 +919,6 @@ class GaugePainter extends CustomPainter {
           color: Colors.white,
           fontSize: 29,
           fontWeight: FontWeight.w900,
-          letterSpacing: 1,
         ),
       ),
       textDirection: TextDirection.ltr,
@@ -846,7 +926,10 @@ class GaugePainter extends CustomPainter {
 
     valueText.paint(
       canvas,
-      Offset(center.dx - valueText.width / 2, center.dy - 48),
+      Offset(
+        center.dx - valueText.width / 2,
+        center.dy - 48,
+      ),
     );
 
     final unit = TextPainter(
@@ -863,41 +946,48 @@ class GaugePainter extends CustomPainter {
 
     unit.paint(
       canvas,
-      Offset(center.dx - unit.width / 2, center.dy - 15),
+      Offset(
+        center.dx - unit.width / 2,
+        center.dy - 15,
+      ),
     );
   }
 
   @override
-  bool shouldRepaint(covariant GaugePainter oldDelegate) =>
-      oldDelegate.value != value || oldDelegate.redline != redline;
+  bool shouldRepaint(covariant GaugePainter oldDelegate) {
+    return oldDelegate.value != value ||
+        oldDelegate.redline != redline;
+  }
 }
 
-// ---------------- CARACAL LOGO ----------------
+// CARACAL LOGO
 
 class CaracalPainter extends CustomPainter {
   const CaracalPainter();
 
   @override
   void paint(Canvas canvas, Size size) {
-    final sx = size.width / 220;
-    final sy = size.height / 180;
-
     canvas.save();
-    canvas.scale(sx, sy);
+    canvas.scale(size.width / 220, size.height / 180);
 
     final metal = Paint()
       ..shader = const LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          Color(0xFFFFFFFF),
+          Colors.white,
           Color(0xFF9EA5AD),
           Color(0xFF353A40),
         ],
-      ).createShader(const Rect.fromLTWH(0, 0, 220, 180));
+      ).createShader(
+        const Rect.fromLTWH(0, 0, 220, 180),
+      );
 
-    final dark = Paint()..color = const Color(0xFF171A1E);
+    final dark = Paint()
+      ..color = const Color(0xFF171A1E);
+
     final eye = Paint()..color = red;
+
     final outline = Paint()
       ..color = const Color(0xFFD9DEE3)
       ..style = PaintingStyle.stroke
@@ -919,20 +1009,20 @@ class CaracalPainter extends CustomPainter {
     canvas.drawPath(head, metal);
     canvas.drawPath(head, outline);
 
-    final innerLeft = Path()
+    final leftEar = Path()
       ..moveTo(39, 18)
       ..lineTo(67, 42)
       ..lineTo(53, 76)
       ..close();
 
-    final innerRight = Path()
+    final rightEar = Path()
       ..moveTo(181, 18)
       ..lineTo(153, 42)
       ..lineTo(167, 76)
       ..close();
 
-    canvas.drawPath(innerLeft, dark);
-    canvas.drawPath(innerRight, dark);
+    canvas.drawPath(leftEar, dark);
+    canvas.drawPath(rightEar, dark);
 
     final face = Path()
       ..moveTo(49, 70)
@@ -988,9 +1078,23 @@ class CaracalPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.5;
 
-    canvas.drawLine(const Offset(110, 134), const Offset(110, 148), mouth);
-    canvas.drawLine(const Offset(110, 148), const Offset(88, 140), mouth);
-    canvas.drawLine(const Offset(110, 148), const Offset(132, 140), mouth);
+    canvas.drawLine(
+      const Offset(110, 134),
+      const Offset(110, 148),
+      mouth,
+    );
+
+    canvas.drawLine(
+      const Offset(110, 148),
+      const Offset(88, 140),
+      mouth,
+    );
+
+    canvas.drawLine(
+      const Offset(110, 148),
+      const Offset(132, 140),
+      mouth,
+    );
 
     canvas.restore();
   }
@@ -999,10 +1103,11 @@ class CaracalPainter extends CustomPainter {
   bool shouldRepaint(covariant CaracalPainter oldDelegate) => false;
 }
 
-// ---------------- LEARN ----------------
+// LEARN
 
 class LearnScreen extends StatelessWidget {
   final bool english;
+
   const LearnScreen({super.key, required this.english});
 
   String t(String fa, String en) => english ? en : fa;
@@ -1026,33 +1131,41 @@ class LearnScreen extends StatelessWidget {
         Text(
           t('آموزش تخصصی', 'TECHNICAL ACADEMY'),
           style: const TextStyle(
-            fontSize: 22,
+            fontSize: 23,
             fontWeight: FontWeight.w900,
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 7),
         Text(
-          t('دانش فنی، از پایه تا پیشرفته',
-              'Automotive knowledge from basic to advanced'),
-          style: const TextStyle(color: silver, fontSize: 12),
+          t(
+            'دانش فنی، از پایه تا پیشرفته',
+            'Automotive knowledge from basic to advanced',
+          ),
+          style: const TextStyle(
+            color: silver,
+            fontSize: 12,
+          ),
         ),
         const SizedBox(height: 20),
         for (final item in items)
           FeatureTile(
             icon: item[0] as IconData,
             title: t(item[1] as String, item[2] as String),
-            subtitle: t('برای مشاهده و یادگیری انتخاب کنید',
-                'Select to explore this topic'),
+            subtitle: t(
+              'برای مشاهده و یادگیری انتخاب کنید',
+              'Select to explore this topic',
+            ),
           ),
       ],
     );
   }
 }
 
-// ---------------- GARAGE ----------------
+// GARAGE
 
 class GarageScreen extends StatelessWidget {
   final bool english;
+
   const GarageScreen({super.key, required this.english});
 
   @override
@@ -1087,7 +1200,9 @@ class GarageScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 15),
                 Text(
-                  english ? 'Your garage is ready' : 'گاراژ شما آماده است',
+                  english
+                      ? 'Your garage is ready'
+                      : 'گاراژ شما آماده است',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 17,
@@ -1096,7 +1211,7 @@ class GarageScreen extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   english
-                      ? 'Vehicle management will be available after connecting your account.'
+                      ? 'Vehicle management will be available after account integration.'
                       : 'مدیریت خودروها پس از اتصال حساب کاربری فعال می‌شود.',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
@@ -1111,14 +1226,16 @@ class GarageScreen extends StatelessWidget {
                       SnackBar(
                         content: Text(
                           english
-                              ? 'Vehicle registration requires account setup.'
-                              : 'ثبت خودرو به راه‌اندازی حساب کاربری نیاز دارد.',
+                              ? 'Account setup is required.'
+                              : 'ثبت خودرو به راه‌اندازی حساب نیاز دارد.',
                         ),
                       ),
                     );
                   },
                   icon: const Icon(Icons.add),
-                  label: Text(english ? 'ADD VEHICLE' : 'افزودن خودرو'),
+                  label: Text(
+                    english ? 'ADD VEHICLE' : 'افزودن خودرو',
+                  ),
                 ),
               ],
             ),
@@ -1129,25 +1246,23 @@ class GarageScreen extends StatelessWidget {
   }
 }
 
-// ---------------- SETTINGS ----------------
+// SETTINGS
 
 class SettingsScreen extends StatelessWidget {
   final bool english;
-  final bool haptics;
-  final bool redline;
-  final bool animations;
   final bool engineSound;
-  final bool compact;
+  final bool animations;
+  final bool redline;
+  final bool haptics;
   final Future<void> Function(String, bool) onChange;
 
   const SettingsScreen({
     super.key,
     required this.english,
-    required this.haptics,
-    required this.redline,
-    required this.animations,
     required this.engineSound,
-    required this.compact,
+    required this.animations,
+    required this.redline,
+    required this.haptics,
     required this.onChange,
   });
 
@@ -1158,52 +1273,45 @@ class SettingsScreen extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(18),
       children: [
-        const Text(
+        Text(
           'CARACAL CONTROL CENTER',
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w900,
             letterSpacing: 1,
           ),
         ),
-        const SizedBox(height: 5),
+        const SizedBox(height: 6),
         Text(
           t('مرکز کنترل و شخصی‌سازی', 'Personalization & Controls'),
           style: const TextStyle(color: silver, fontSize: 12),
         ),
         const SizedBox(height: 20),
-        _section(t('ظاهر و نمایش', 'DISPLAY & APPEARANCE')),
-        _switch(
+        section(t('ظاهر و نمایش', 'DISPLAY & APPEARANCE')),
+        settingSwitch(
           t('افکت‌های حرکتی', 'Motion Effects'),
           t('فعال‌سازی انیمیشن‌ها', 'Enable animations'),
           animations,
           (v) => onChange('animations', v),
           Icons.animation,
         ),
-        _switch(
+        settingSwitch(
           t('نور ردلاین', 'Redline Glow'),
           t('افکت نور قرمز دور موتور', 'RPM redline lighting'),
           redline,
           (v) => onChange('redline', v),
           Icons.brightness_high,
         ),
-        _switch(
-          t('داشبورد فشرده', 'Compact Dashboard'),
-          t('نمایش فشرده‌تر اطلاعات', 'Use a compact dashboard'),
-          compact,
-          (v) => onChange('compact', v),
-          Icons.dashboard_customize,
-        ),
         const SizedBox(height: 12),
-        _section(t('صدا و بازخورد', 'SOUND & FEEDBACK')),
-        _switch(
-          t('صدای موتور', 'Engine Sound'),
-          t('تنظیم صدای موتور', 'Engine sound preference'),
+        section(t('صدا و بازخورد', 'SOUND & FEEDBACK')),
+        settingSwitch(
+          t('صدای موتور و غرش کاراکال', 'Engine & Caracal Sound'),
+          t('صدای آغاز برنامه', 'Intro sound effects'),
           engineSound,
           (v) => onChange('engineSound', v),
           Icons.volume_up,
         ),
-        _switch(
+        settingSwitch(
           t('بازخورد لمسی', 'Haptic Feedback'),
           t('لرزش هنگام لمس کنترل‌ها', 'Touch feedback'),
           haptics,
@@ -1211,48 +1319,29 @@ class SettingsScreen extends StatelessWidget {
           Icons.vibration,
         ),
         const SizedBox(height: 12),
-        _section(t('زبان برنامه', 'APP LANGUAGE')),
-        ListTile(
-          leading: const Icon(Icons.language, color: red),
-          title: Text(t('زبان فارسی', 'Persian Language')),
+        section(t('زبان برنامه', 'APP LANGUAGE')),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          secondary: const Icon(Icons.language, color: red),
+          title: Text(t('زبان فارسی', 'English Language')),
           subtitle: Text(t('تغییر زبان برنامه', 'Change application language')),
-          trailing: Switch(
-            value: english,
-            activeColor: red,
-            onChanged: (v) => onChange('english', v),
-          ),
-        ),
-        const SizedBox(height: 15),
-        _section(t('حساب و امنیت', 'ACCOUNT & SECURITY')),
-        ListTile(
-          leading: const Icon(Icons.lock_outline, color: silver),
-          title: Text(t('امنیت حساب', 'Account Security')),
-          subtitle: Text(
-            t('پس از راه‌اندازی سامانه حساب فعال می‌شود',
-                'Available after account integration'),
-          ),
-        ),
-        ListTile(
-          leading: const Icon(Icons.devices, color: silver),
-          title: Text(t('دستگاه‌های متصل', 'Connected Devices')),
-          subtitle: Text(
-            t('مدیریت دستگاه‌ها پس از اتصال حساب',
-                'Manage devices after account setup'),
-          ),
+          value: english,
+          activeColor: red,
+          onChanged: (v) => onChange('english', v),
         ),
         const SizedBox(height: 20),
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             color: panel,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(15),
             border: Border.all(color: Colors.white10),
           ),
           child: Column(
             children: [
               const SizedBox(
-                width: 75,
-                height: 65,
+                width: 90,
+                height: 75,
                 child: CustomPaint(painter: CaracalPainter()),
               ),
               const SizedBox(height: 10),
@@ -1287,7 +1376,7 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _section(String title) {
+  Widget section(String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8, top: 8),
       child: Text(
@@ -1302,7 +1391,7 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _switch(
+  Widget settingSwitch(
     String title,
     String subtitle,
     bool value,
@@ -1314,11 +1403,17 @@ class SettingsScreen extends StatelessWidget {
       secondary: Icon(icon, color: silver),
       title: Text(
         title,
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+        ),
       ),
       subtitle: Text(
         subtitle,
-        style: const TextStyle(fontSize: 10, color: Colors.white54),
+        style: const TextStyle(
+          fontSize: 10,
+          color: Colors.white54,
+        ),
       ),
       value: value,
       activeColor: red,
