@@ -631,12 +631,12 @@ class _AnimatedGaugeState extends State<AnimatedGauge>
 
     rpm = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween(begin: 0, end: 6500)
+        tween: Tween<double>(begin: 0.0, end: 6500.0)
             .chain(CurveTween(curve: Curves.easeOutCubic)),
         weight: 65,
       ),
       TweenSequenceItem(
-        tween: Tween(begin: 6500, end: 2200)
+        tween: Tween<double>(begin: 6500.0, end: 2200.0)
             .chain(CurveTween(curve: Curves.easeInOut)),
         weight: 35,
       ),
