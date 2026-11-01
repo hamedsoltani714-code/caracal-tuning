@@ -873,7 +873,13 @@ class _MainScreenState extends State<MainScreen> {
               leading: const Icon(Icons.logout, color: accent),
               title: Text(t('خروج از حساب', 'Sign out')),
               onTap: () async {
-                await Supabaseclass AuthScreen extends StatefulWidget {
+                await Supabase.instance.client.auth.signOut();
+      },
+    ),
+  ),
+}
+
+class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key, required this.fa});
   final bool fa;
 
