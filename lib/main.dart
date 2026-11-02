@@ -565,7 +565,7 @@ class HomeScreen extends StatelessWidget {
               icon: Icons.settings,
               title: t('مرکز کنترل', 'Control Center'),
               subtitle: t('تنظیمات برنامه', 'App settings'),
-              onTap: () => onNavigate(3),
+              onTap: () => onNavigate(4),
             ),
           ],
         ),
