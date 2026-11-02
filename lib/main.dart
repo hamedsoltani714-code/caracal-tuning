@@ -11,10 +11,10 @@ import 'package:video_player/video_player.dart';
 import 'booking_admin_screens.dart';
 
 const String supabaseUrl =
-    String.fromEnvironment('SUPABASE_URL')
+    String.fromEnvironment('SUPABASE_URL');
 
 const String supabaseAnonKey =
-    String.fromEnvironment('SUPABASE_ANON_KEY')
+    String.fromEnvironment('SUPABASE_ANON_KEY');
 
 bool supabaseConfigured = false;
 
