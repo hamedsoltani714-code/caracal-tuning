@@ -1,13 +1,14 @@
-import 'booking_admin_screens.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:video_player/video_player.dart';
+import 'booking_admin_screens.dart';
 
 const String supabaseUrl = String.fromEnvironment('SUPABASE_URL');
 const String supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
@@ -43,6 +44,7 @@ class _CaracalAppState extends State<CaracalApp> {
   bool animations = true;
   bool redline = true;
   bool haptics = true;
+  bool introSound = true;
   int tab = 0;
   bool ready = false;
 
@@ -64,6 +66,7 @@ class _CaracalAppState extends State<CaracalApp> {
       animations = p.getBool('animations') ?? true;
       redline = p.getBool('redline') ?? true;
       haptics = p.getBool('haptics') ?? true;
+      introSound = p.getBool('introSound') ?? true;
     });
   }
 
@@ -84,6 +87,9 @@ class _CaracalAppState extends State<CaracalApp> {
           break;
         case 'haptics':
           haptics = value;
+          break;
+        case 'introSound':
+          introSound = value;
           break;
       }
     });
@@ -122,11 +128,13 @@ class _CaracalAppState extends State<CaracalApp> {
                       ),
                       LearnScreen(english: english),
                       GarageScreen(english: english),
+                      BookingScreen(english: english),
                       SettingsScreen(
                         english: english,
                         animations: animations,
                         redline: redline,
                         haptics: haptics,
+                        introSound: introSound,
                         onChange: save,
                       ),
                     ],
@@ -158,6 +166,11 @@ class _CaracalAppState extends State<CaracalApp> {
                       label: t('گاراژ', 'Garage'),
                     ),
                     NavigationDestination(
+                      icon: const Icon(Icons.calendar_month_outlined),
+                      selectedIcon: const Icon(Icons.calendar_month, color: red),
+                      label: t('نوبت‌دهی', 'Booking'),
+                    ),
+                    NavigationDestination(
                       icon: const Icon(Icons.tune_outlined),
                       selectedIcon: const Icon(Icons.tune, color: red),
                       label: t('تنظیمات', 'Settings'),
@@ -166,7 +179,7 @@ class _CaracalAppState extends State<CaracalApp> {
                 ),
               ),
             )
-          : IntroScreen(onFinished: finishIntro),
+          : IntroScreen(onFinished: finishIntro, soundEnabled: introSound),
     );
   }
 }
@@ -175,7 +188,8 @@ class _CaracalAppState extends State<CaracalApp> {
 
 class IntroScreen extends StatefulWidget {
   final VoidCallback onFinished;
-  const IntroScreen({super.key, required this.onFinished});
+  final bool soundEnabled;
+  const IntroScreen({super.key, required this.onFinished, required this.soundEnabled});
 
   @override
   State<IntroScreen> createState() => _IntroScreenState();
@@ -195,7 +209,7 @@ class _IntroScreenState extends State<IntroScreen> {
 
   Future<void> _initializeVideo() async {
     try {
-      final controller = VideoPlayerController.asset('assets/Intro.mp4');
+      final controller = VideoPlayerController.asset('assets/images/intro.mp4');
       _video = controller;
       await controller.initialize();
       if (!mounted) {
@@ -203,7 +217,7 @@ class _IntroScreenState extends State<IntroScreen> {
         return;
       }
       await controller.setLooping(false);
-      await controller.setVolume(1.0);
+      await controller.setVolume(widget.soundEnabled ? 1.0 : 0.0);
       controller.addListener(_videoListener);
       await controller.play();
       setState(() {});
@@ -291,7 +305,7 @@ class _IntroScreenState extends State<IntroScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Image.asset(
-                      'assets/130315.png',
+                      'assets/images/130315.png',
                       width: 76,
                       height: 62,
                       fit: BoxFit.contain,
@@ -371,7 +385,7 @@ class HomeScreen extends StatelessWidget {
               width: 58,
               height: 52,
               child: Image.asset(
-                'assets/130315.png',
+                'assets/images/130315.png',
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stack) =>
                     const CustomPaint(painter: CaracalPainter()),
@@ -1762,6 +1776,7 @@ class SettingsScreen extends StatelessWidget {
   final bool animations;
   final bool redline;
   final bool haptics;
+  final bool introSound;
   final Future<void> Function(String, bool) onChange;
 
   const SettingsScreen({
@@ -1770,6 +1785,7 @@ class SettingsScreen extends StatelessWidget {
     required this.animations,
     required this.redline,
     required this.haptics,
+    required this.introSound,
     required this.onChange,
   });
 
@@ -1808,6 +1824,13 @@ class SettingsScreen extends StatelessWidget {
           redline,
           (v) => onChange('redline', v),
           Icons.brightness_high,
+        ),
+        settingSwitch(
+          t('صدای شروع برنامه', 'Intro Sound'),
+          t('صدای ویدئوی آغازین کاراکال', 'Play intro video sound'),
+          introSound,
+          (v) => onChange('introSound', v),
+          Icons.volume_up,
         ),
         const SizedBox(height: 12),
         section(t('بازخورد لمسی', 'HAPTIC FEEDBACK')),
