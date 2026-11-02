@@ -47,36 +47,44 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Fix file_picker Android SDK
+      - name: Force file_picker compile SDK 36
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re
 
           root = Path.home() / ".pub-cache" / "hosted" / "pub.dev"
-          files = list(root.glob("file_picker-*/android/build.gradle"))
-          files += list(root.glob("file_picker-*/android/build.gradle.kts"))
+          files = list(root.glob("file_picker-*/android/**/*.gradle"))
+          files += list(root.glob("file_picker-*/android/**/*.gradle.kts"))
 
           if not files:
-              raise SystemExit("file_picker Gradle file not found")
+              raise SystemExit("ERROR: file_picker Gradle files not found")
+
+          changed = False
 
           for path in files:
-              content = path.read_text()
+              source = path.read_text()
 
-              content = re.sub(
-                  r"compileSdkVersion\s+(?:\d+|flutter\.compileSdkVersion)",
-                  "compileSdkVersion 36",
-                  content
+              pattern = r"(?m)^(\s*compileSdk(?:Version)?\s*(?:=\s*)?)(\d+|flutter\.compileSdkVersion)\b"
+
+              updated, count = re.subn(
+                  pattern,
+                  r"\g<1>36",
+                  source
               )
 
-              content = re.sub(
-                  r"compileSdk\s*=\s*(?:\d+|flutter\.compileSdkVersion)",
-                  "compileSdk = 36",
-                  content
-              )
+              if count:
+                  path.write_text(updated)
+                  changed = True
+                  print("Updated:", path, "Changes:", count)
 
-              path.write_text(content)
-              print("Updated:", path)
+          if not changed:
+              for path in files:
+                  print("\n---", path, "---")
+                  print(path.read_text())
+
+              raise SystemExit("ERROR: compileSdk declaration not found")
+
           PY
 
       - name: Generate app icons
