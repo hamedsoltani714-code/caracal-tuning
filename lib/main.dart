@@ -11,10 +11,10 @@ import 'package:video_player/video_player.dart';
 import 'booking_admin_screens.dart';
 
 const String supabaseUrl =
-    String.fromEnvironment('SUPABASE_URL');
+    String.fromEnvironment('SUPABASE_URL').trim();
 
 const String supabaseAnonKey =
-    String.fromEnvironment('SUPABASE_ANON_KEY');
+    String.fromEnvironment('SUPABASE_ANON_KEY').trim();
 
 bool supabaseConfigured = false;
 
@@ -219,6 +219,8 @@ class IntroScreen extends StatefulWidget {
 
 class _IntroScreenState extends State<IntroScreen> {
   VideoPlayerController? _video;
+  final AudioPlayer _roarPlayer = AudioPlayer();
+  final AudioPlayer _enginePlayer = AudioPlayer();
   Timer? _fallbackTimer;
   bool _failed = false;
   bool _finished = false;
@@ -231,7 +233,7 @@ class _IntroScreenState extends State<IntroScreen> {
 
   Future<void> _initializeVideo() async {
     try {
-      final controller = VideoPlayerController.asset('assets/images/intro.mp4');
+      final controller = VideoPlayerController.asset('assets/Intro.mp4');
       _video = controller;
       await controller.initialize();
       if (!mounted) {
@@ -239,9 +241,14 @@ class _IntroScreenState extends State<IntroScreen> {
         return;
       }
       await controller.setLooping(false);
-      await controller.setVolume(widget.soundEnabled ? 1.0 : 0.0);
+      // The supplied MP3 tracks provide the separate roar and engine-rev layers.
+      // Keep the MP4 soundtrack muted to avoid overlapping audio tracks.
+      await controller.setVolume(0.0);
       controller.addListener(_videoListener);
       await controller.play();
+      if (widget.soundEnabled) {
+        unawaited(_playIntroAudio());
+      }
       setState(() {});
       // Safety fallback for devices/codecs that fail to report completion.
       final duration = controller.value.duration;
@@ -251,6 +258,20 @@ class _IntroScreenState extends State<IntroScreen> {
       if (!mounted) return;
       setState(() => _failed = true);
       _fallbackTimer = Timer(const Duration(seconds: 3), _finish);
+    }
+  }
+
+  Future<void> _playIntroAudio() async {
+    try {
+      await _roarPlayer.setReleaseMode(ReleaseMode.stop);
+      await _enginePlayer.setReleaseMode(ReleaseMode.stop);
+      await _roarPlayer.play(AssetSource('Caracal (1).mp3'));
+      await Future<void>.delayed(const Duration(milliseconds: 650));
+      if (!_finished && mounted) {
+        await _enginePlayer.play(AssetSource('Pagani-Zonda (2).mp3'));
+      }
+    } catch (e) {
+      debugPrint('CARACAL intro audio failed: $e');
     }
   }
 
@@ -277,6 +298,8 @@ class _IntroScreenState extends State<IntroScreen> {
     _fallbackTimer?.cancel();
     _video?.removeListener(_videoListener);
     _video?.dispose();
+    _roarPlayer.dispose();
+    _enginePlayer.dispose();
     super.dispose();
   }
 
@@ -327,7 +350,7 @@ class _IntroScreenState extends State<IntroScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Image.asset(
-                      'assets/images/130315.png',
+                      'assets/130315.png',
                       width: 76,
                       height: 62,
                       fit: BoxFit.contain,
@@ -407,7 +430,7 @@ class HomeScreen extends StatelessWidget {
               width: 58,
               height: 52,
               child: Image.asset(
-                'assets/images/130315.png',
+                'assets/130315.png',
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stack) =>
                     const CustomPaint(painter: CaracalPainter()),
