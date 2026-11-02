@@ -209,7 +209,7 @@ class _IntroScreenState extends State<IntroScreen> {
 
   Future<void> _initializeVideo() async {
     try {
-      final controller = VideoPlayerController.asset('assets/images/Intro.mp4');
+      final controller = VideoPlayerController.asset('assets/Intro.mp4');
       _video = controller;
       await controller.initialize();
       if (!mounted) {
