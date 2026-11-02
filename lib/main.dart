@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -194,7 +195,7 @@ class _IntroScreenState extends State<IntroScreen> {
 
   Future<void> _initializeVideo() async {
     try {
-      final controller = VideoPlayerController.asset('assets/images/intro.mp4');
+      final controller = VideoPlayerController.asset('assets/Intro.mp4');
       _video = controller;
       await controller.initialize();
       if (!mounted) {
@@ -290,7 +291,7 @@ class _IntroScreenState extends State<IntroScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Image.asset(
-                      'assets/images/130315.png',
+                      'assets/130315.png',
                       width: 76,
                       height: 62,
                       fit: BoxFit.contain,
@@ -370,7 +371,7 @@ class HomeScreen extends StatelessWidget {
               width: 58,
               height: 52,
               child: Image.asset(
-                'assets/images/130315.png',
+                'assets/130315.png',
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stack) =>
                     const CustomPaint(painter: CaracalPainter()),
