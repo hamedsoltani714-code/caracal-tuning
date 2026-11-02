@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:persian_datetime_picker/persian_datetime_picker.dart';
 
 const _bookingBg = Color(0xFF08090B);
 const _bookingPanel = Color(0xFF15171B);
@@ -275,13 +276,14 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Future<void> _selectDate() async {
-    final selected = await showDatePicker(
-      context: context,
-      initialDate: _date,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 180)),
-      builder: (context, child) {
-        return Theme(
+    DateTime? selectedDate;
+    if (_en) {
+      selectedDate = await showDatePicker(
+        context: context,
+        initialDate: _date,
+        firstDate: DateTime.now(),
+        lastDate: DateTime.now().add(const Duration(days: 180)),
+        builder: (context, child) => Theme(
           data: ThemeData.dark().copyWith(
             colorScheme: const ColorScheme.dark(
               primary: _bookingRed,
@@ -289,17 +291,42 @@ class _BookingScreenState extends State<BookingScreen> {
             ),
           ),
           child: child!,
-        );
-      },
-    );
+        ),
+      );
+    } else {
+      final selectedJalali = await showPersianDatePicker(
+        context: context,
+        initialDate: Jalali.fromDateTime(_date),
+        firstDate: Jalali.now(),
+        lastDate: Jalali.now().add(const Duration(days: 180)),
+        helpText: 'انتخاب تاریخ نوبت',
+        cancelText: 'لغو',
+        confirmText: 'تأیید',
+        textDirection: TextDirection.rtl,
+        builder: (context, child) => Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: _bookingRed,
+              surface: _bookingPanel,
+            ),
+          ),
+          child: child!,
+        ),
+      );
+      selectedDate = selectedJalali?.toDateTime();
+    }
 
-    if (selected != null && mounted) {
-      setState(() => _date = selected);
+    if (selectedDate != null && mounted) {
+      setState(() => _date = selectedDate!);
     }
   }
 
   String _formattedDate() {
-    return '${_date.year}/${_date.month.toString().padLeft(2, '0')}/${_date.day.toString().padLeft(2, '0')}';
+    if (_en) {
+      return '${_date.year}/${_date.month.toString().padLeft(2, '0')}/${_date.day.toString().padLeft(2, '0')}';
+    }
+    final jalali = Jalali.fromDateTime(_date);
+    return '${jalali.year}/${jalali.month.toString().padLeft(2, '0')}/${jalali.day.toString().padLeft(2, '0')}';
   }
 
   @override
