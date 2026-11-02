@@ -10,20 +10,42 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:video_player/video_player.dart';
 import 'booking_admin_screens.dart';
 
-const String supabaseUrl = String.fromEnvironment('SUPABASE_URL');
-const String supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+const String supabaseUrl =
+    String.fromEnvironment('SUPABASE_URL').trim();
+
+const String supabaseAnonKey =
+    String.fromEnvironment('SUPABASE_ANON_KEY').trim();
+
 bool supabaseConfigured = false;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
+
+  final validUrl = Uri.tryParse(supabaseUrl);
+
+  if (supabaseUrl.isNotEmpty &&
+      supabaseAnonKey.isNotEmpty &&
+      validUrl != null &&
+      validUrl.scheme == 'https' &&
+      validUrl.host.isNotEmpty &&
+      validUrl.path.isEmpty) {
     try {
-      await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
+      await Supabase.initialize(
+        url: supabaseUrl,
+        anonKey: supabaseAnonKey,
+      );
+
       supabaseConfigured = true;
+      debugPrint('CARACAL: Supabase initialized.');
     } catch (e) {
-      debugPrint('Supabase initialization failed: $e');
+      debugPrint('CARACAL SUPABASE ERROR: $e');
     }
+  } else {
+    debugPrint(
+      'CARACAL: Supabase configuration is missing or invalid.',
+    );
   }
+
   runApp(const CaracalApp());
 }
 
@@ -209,7 +231,7 @@ class _IntroScreenState extends State<IntroScreen> {
 
   Future<void> _initializeVideo() async {
     try {
-      final controller = VideoPlayerController.asset('assets/Intro.mp4');
+      final controller = VideoPlayerController.asset('assets/images/intro.mp4');
       _video = controller;
       await controller.initialize();
       if (!mounted) {
