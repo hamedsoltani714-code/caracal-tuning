@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-const Color _bookingBg = Color(0xFF08090B);
-const Color _bookingPanel = Color(0xFF17191D);
-const Color _bookingRed = Color(0xFFFF3038);
-const Color _bookingSilver = Color(0xFFC5CBD2);
+const _bookingBg = Color(0xFF08090B);
+const _bookingPanel = Color(0xFF15171B);
+const _bookingRed = Color(0xFFFF3038);
 
 class BookingScreen extends StatefulWidget {
   final bool english;
@@ -14,267 +13,130 @@ class BookingScreen extends StatefulWidget {
 }
 
 class _BookingScreenState extends State<BookingScreen> {
-  final _db = Supabase.instance.client;
-  List<Map<String, dynamic>> _branches = [];
-  List<Map<String, dynamic>> _appointments = [];
-  Map<String, dynamic>? _branch;
-  DateTime _day = DateUtils.dateOnly(DateTime.now());
-  String? _service;
-  String? _slot;
-  bool _loading = true;
-  bool _saving = false;
-  String? _error;
   final _name = TextEditingController();
   final _phone = TextEditingController();
-  final _services = const ['ریمپ و تیونینگ', 'عیب‌یابی و دیاگ', 'بررسی و مشاوره'];
+  final _vehicle = TextEditingController();
+  final _notes = TextEditingController();
+  DateTime _date = DateTime.now().add(const Duration(days: 1));
+  String _time = '10:00';
+  String _service = 'ریمپ و کالیبراسیون';
+  bool _busy = false;
+  bool _admin = false;
+  String? _message;
+  List<Map<String, dynamic>> _requests = [];
 
-  String tr(String fa, String en) => widget.english ? en : fa;
+  bool get _en => widget.english;
+  String t(String fa, String en) => _en ? en : fa;
+  SupabaseClient get _client => Supabase.instance.client;
+  bool get _configured {
+    try { return Supabase.instance.client.auth.currentUser != null || true; }
+    catch (_) { return false; }
+  }
+  bool get _signedIn {
+    try { return _client.auth.currentUser != null; } catch (_) { return false; }
+  }
 
   @override
-  void initState() { super.initState(); _load(); }
-
+  void initState() { super.initState(); _loadRequests(); }
   @override
-  void dispose() { _name.dispose(); _phone.dispose(); super.dispose(); }
+  void dispose() {
+    _name.dispose(); _phone.dispose(); _vehicle.dispose(); _notes.dispose();
+    super.dispose();
+  }
 
-  Future<void> _load() async {
-    if (!mounted) return;
-    setState(() { _loading = true; _error = null; });
+  Future<void> _loadRequests() async {
+    if (!_signedIn) return;
     try {
-      final rows = await _db.from('branches').select().eq('active', true).order('name');
-      _branches = List<Map<String, dynamic>>.from(rows);
-      if (_branch == null && _branches.isNotEmpty) _branch = _branches.first;
-      await _loadAppointments();
-    } catch (e) {
-      _error = e.toString();
-    }
-    if (mounted) setState(() => _loading = false);
+      final profile = await _client.from('profiles').select('role,permissions').eq('id', _client.auth.currentUser!.id).maybeSingle();
+      final role = profile?['role']?.toString();
+      final perms = Map<String, dynamic>.from(profile?['permissions'] as Map? ?? {});
+      final isAdmin = role == 'owner' || role == 'admin' || perms['manage_bookings'] == true;
+      _admin = isAdmin;
+      final rows = isAdmin
+          ? await _client.from('booking_requests').select().order('created_at', ascending: false).limit(100)
+          : await _client.from('booking_requests').select().eq('user_id', _client.auth.currentUser!.id).order('created_at', ascending: false);
+      if (mounted) setState(() => _requests = List<Map<String, dynamic>>.from(rows));
+    } catch (e) { if (mounted) setState(() => _message = e.toString()); }
   }
 
-  Future<void> _loadAppointments() async {
-    if (_branch == null) return;
-    final start = DateTime(_day.year, _day.month, _day.day);
-    final end = start.add(const Duration(days: 1));
-    final rows = await _db.from('appointments').select('starts_at,ends_at,status')
-      .eq('branch_id', _branch!['id'])
-      .gte('starts_at', start.toIso8601String())
-      .lt('starts_at', end.toIso8601String())
-      .neq('status', 'cancelled');
-    _appointments = List<Map<String, dynamic>>.from(rows);
-    _slot = null;
-  }
-
-  Future<List<String>> _availableSlots() async {
-    if (_branch == null) return [];
-    final weekday = _day.weekday % 7;
-    final hours = await _db.from('branch_hours').select()
-      .eq('branch_id', _branch!['id']).eq('weekday', weekday).maybeSingle();
-    if (hours == null || hours['is_closed'] == true) return [];
-    final closures = await _db.from('branch_closures').select('id')
-      .eq('branch_id', _branch!['id']).eq('closed_on', _day.toIso8601String().substring(0,10));
-    if ((closures as List).isNotEmpty) return [];
-    final open = (hours['opens_at'] as String).substring(0,5).split(':').map(int.parse).toList();
-    final close = (hours['closes_at'] as String).substring(0,5).split(':').map(int.parse).toList();
-    final step = (hours['slot_minutes'] as num?)?.toInt() ?? 30;
-    final from = DateTime(_day.year,_day.month,_day.day,open[0],open[1]);
-    final until = DateTime(_day.year,_day.month,_day.day,close[0],close[1]);
-    final now = DateTime.now();
-    final capacity = (_branch!['capacity'] as num?)?.toInt() ?? 1;
-    final result = <String>[];
-    for (var t = from; t.add(Duration(minutes: step)).isAfter(until) == false; t = t.add(Duration(minutes: step))) {
-      if (t.isBefore(now.add(const Duration(minutes: 15)))) continue;
-      final end = t.add(Duration(minutes: step));
-      final occupied = _appointments.where((a) {
-        final s = DateTime.parse(a['starts_at']).toLocal();
-        final e = DateTime.parse(a['ends_at']).toLocal();
-        return t.isBefore(e) && end.isAfter(s);
-      }).length;
-      if (occupied < capacity) result.add('${t.hour.toString().padLeft(2,'0')}:${t.minute.toString().padLeft(2,'0')}');
+  Future<void> _submit() async {
+    if (!_signedIn) { setState(() => _message = t('برای ثبت نوبت ابتدا از بخش گاراژ وارد حساب شو.', 'Sign in from the Garage tab before booking.')); return; }
+    if (_name.text.trim().isEmpty || _phone.text.trim().isEmpty || _vehicle.text.trim().isEmpty) {
+      setState(() => _message = t('نام، شماره تماس و خودرو را کامل کن.', 'Enter your name, phone number and vehicle.')); return;
     }
-    return result;
-  }
-
-  Future<void> _book() async {
-    final user = _db.auth.currentUser;
-    if (user == null) {
-      _message(tr('برای ثبت نوبت ابتدا وارد حساب شوید.','Sign in before booking.'));
-      return;
-    }
-    if (_branch == null || _service == null || _slot == null || _name.text.trim().isEmpty || _phone.text.trim().isEmpty) {
-      _message(tr('همه موارد را کامل کنید.','Complete all fields.'));
-      return;
-    }
-    setState(() => _saving = true);
+    setState(() { _busy = true; _message = null; });
     try {
-      final p = _slot!.split(':').map(int.parse).toList();
-      final start = DateTime(_day.year,_day.month,_day.day,p[0],p[1]);
-      final duration = const Duration(minutes: 30);
-      final result = await _db.from('appointments').insert({
-        'user_id': user.id,
-        'branch_id': _branch!['id'],
+      await _client.from('booking_requests').insert({
+        'user_id': _client.auth.currentUser!.id,
         'customer_name': _name.text.trim(),
-        'customer_phone': _phone.text.trim(),
+        'phone': _phone.text.trim(),
+        'vehicle': _vehicle.text.trim(),
         'service': _service,
-        'starts_at': start.toUtc().toIso8601String(),
-        'ends_at': start.add(duration).toUtc().toIso8601String(),
-        'status': 'pending'
-      }).select('tracking_code').single();
-      _message('${tr('نوبت ثبت شد. کد پیگیری:','Booking created. Tracking code:')} ${result['tracking_code']}');
-      await _loadAppointments();
-    } on PostgrestException catch (e) {
-      _message(e.message);
-    } catch (e) { _message(e.toString()); }
-    if (mounted) setState(() => _saving = false);
+        'preferred_date': '${_date.year.toString().padLeft(4,'0')}-${_date.month.toString().padLeft(2,'0')}-${_date.day.toString().padLeft(2,'0')}',
+        'preferred_time': _time,
+        'notes': _notes.text.trim(),
+        'status': 'pending',
+      });
+      _name.clear(); _phone.clear(); _vehicle.clear(); _notes.clear();
+      setState(() => _message = t('درخواست نوبت ثبت شد؛ پس از بررسی با تو تماس گرفته می‌شود.', 'Booking request submitted. You will be contacted after review.'));
+      await _loadRequests();
+    } catch (e) { setState(() => _message = '${t('ثبت نوبت ناموفق بود: ', 'Booking failed: ')}$e'); }
+    finally { if (mounted) setState(() => _busy = false); }
   }
 
-  void _message(String s) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s)));
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bookingBg,
-      appBar: AppBar(title: Text(tr('رزرو نوبت','Book an appointment')), backgroundColor: _bookingBg,
-        actions: [IconButton(onPressed: _load, icon: const Icon(Icons.refresh))]),
-      body: _loading ? const Center(child:CircularProgressIndicator(color:_bookingRed))
-      : _error != null ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text('${tr('خطا در دریافت اطلاعات:','Could not load booking data:')}\n$_error',textAlign:TextAlign.center)))
-      : _branches.isEmpty ? Center(child:Text(tr('هنوز شعبه‌ای ثبت نشده است.','No active branches yet.')))
-      : FutureBuilder<List<String>>(
-        future: _availableSlots(),
-        builder: (context,snapshot) {
-          final slots = snapshot.data ?? [];
-          return ListView(padding:const EdgeInsets.all(18), children:[
-            _section(tr('۱. انتخاب شعبه','1. Select branch')),
-            DropdownButtonFormField<String>(
-              value: _branch?['id']?.toString(),
-              decoration:_input(tr('شعبه','Branch')),
-              items:_branches.map((b)=>DropdownMenuItem(value:b['id'].toString(),child:Text(b['name']??''))).toList(),
-              onChanged:(v) async { setState(()=>_branch=_branches.firstWhere((b)=>b['id'].toString()==v)); await _loadAppointments(); setState((){}); },
-            ),
-            const SizedBox(height:20),
-            _section(tr('۲. نوع خدمات','2. Service')),
-            DropdownButtonFormField<String>(
-              value:_service, decoration:_input(tr('خدمت موردنظر','Choose service')),
-              items:_services.map((s)=>DropdownMenuItem(value:s,child:Text(s))).toList(),
-              onChanged:(v)=>setState(()=>_service=v),
-            ),
-            const SizedBox(height:20),
-            _section(tr('۳. تاریخ مراجعه','3. Appointment date')),
-            OutlinedButton.icon(
-              onPressed:() async {
-                final d=await showDatePicker(context:context,initialDate:_day,firstDate:DateTime.now(),lastDate:DateTime.now().add(const Duration(days:90)));
-                if(d!=null){setState(()=>_day=DateUtils.dateOnly(d));await _loadAppointments();setState((){});}
-              },
-              icon:const Icon(Icons.calendar_month),label:Text('${_day.year}/${_day.month.toString().padLeft(2,'0')}/${_day.day.toString().padLeft(2,'0')}'),
-            ),
-            const SizedBox(height:12),
-            _section(tr('۴. ساعت‌های آزاد','4. Available times')),
-            if(snapshot.connectionState==ConnectionState.waiting) const Center(child:CircularProgressIndicator())
-            else if(slots.isEmpty) Text(tr('برای این تاریخ ساعت آزادی وجود ندارد.','No available times for this date.'))
-            else Wrap(spacing:8,runSpacing:8,children:slots.map((s)=>ChoiceChip(label:Text(s),selected:_slot==s,onSelected:(_)=>setState(()=>_slot=s),selectedColor:_bookingRed.withOpacity(.35))).toList()),
-            const SizedBox(height:20),
-            _section(tr('۵. مشخصات شما','5. Your details')),
-            TextField(controller:_name,decoration:_input(tr('نام و نام خانوادگی','Full name'))),
-            const SizedBox(height:10),
-            TextField(controller:_phone,keyboardType:TextInputType.phone,decoration:_input(tr('شماره تماس','Phone number'))),
-            const SizedBox(height:24),
-            FilledButton(
-              style:FilledButton.styleFrom(backgroundColor:_bookingRed,foregroundColor:Colors.white,padding:const EdgeInsets.all(16)),
-              onPressed:_saving?null:_book,
-              child:_saving?const CircularProgressIndicator():Text(tr('ثبت نوبت','Confirm booking')),
-            ),
-            const SizedBox(height:12),
-            Text(tr('ثبت نهایی نوبت با کنترل ظرفیت سمت سرور انجام می‌شود.','Final booking capacity is validated securely on the server.'),style:const TextStyle(color:_bookingSilver,fontSize:12)),
-          ]);
-        },
-      ),
-    );
-  }
-
-  Widget _section(String s)=>Padding(padding:const EdgeInsets.only(bottom:10),child:Text(s,style:const TextStyle(color:_bookingSilver,fontSize:16,fontWeight:FontWeight.bold)));
-  InputDecoration _input(String label)=>InputDecoration(labelText:label,filled:true,fillColor:_bookingPanel,border:OutlineInputBorder(borderRadius:BorderRadius.circular(12)));
-}
-
-class OwnerAdminScreen extends StatefulWidget {
-  final bool english;
-  const OwnerAdminScreen({super.key,required this.english});
-  @override
-  State<OwnerAdminScreen> createState()=>_OwnerAdminScreenState();
-}
-
-class _OwnerAdminScreenState extends State<OwnerAdminScreen> {
-  final _db=Supabase.instance.client;
-  final _branchName=TextEditingController();
-  final _address=TextEditingController();
-  List<Map<String,dynamic>> _branches=[];
-  List<Map<String,dynamic>> _appointments=[];
-  bool _loading=true;
-  bool _owner=false;
-  String? _error;
-  String tr(String fa,String en)=>widget.english?en:fa;
-
-  @override
-  void initState(){super.initState();_load();}
-  @override
-  void dispose(){_branchName.dispose();_address.dispose();super.dispose();}
-
-  Future<void> _load() async {
-    setState(()=>_loading=true);
+  Future<void> _changeStatus(Map<String, dynamic> row, String status) async {
     try {
-      final user=_db.auth.currentUser;
-      if(user==null){_owner=false;_error=tr('ابتدا وارد حساب شوید.','Please sign in first.');}
-      else {
-        _owner=(user.email?.toLowerCase()=='hamedsoltani714@gmail.com');
-        try { _owner=_owner || (await _db.rpc('is_caracal_owner')==true); } catch(_){}
-        if(!_owner){
-          final role=await _db.from('staff_roles').select('role').eq('user_id',user.id).maybeSingle();
-          _owner=role?['role']=='admin';
-        }
-        if(_owner){
-          _branches=List<Map<String,dynamic>>.from(await _db.from('branches').select().order('name'));
-          _appointments=List<Map<String,dynamic>>.from(await _db.from('appointments').select('id,customer_name,customer_phone,service,starts_at,status,tracking_code,branches(name)').order('starts_at',ascending:false).limit(100));
-        }
-      }
-    }catch(e){_error=e.toString();}
-    if(mounted)setState(()=>_loading=false);
+      await _client.from('booking_requests').update({'status': status}).eq('id', row['id']);
+      await _loadRequests();
+    } catch (e) { if (mounted) setState(() => _message = e.toString()); }
   }
-
-  Future<void> _addBranch() async {
-    if(_branchName.text.trim().isEmpty)return;
-    try {
-      await _db.from('branches').insert({'name':_branchName.text.trim(),'address':_address.text.trim(),'active':true,'capacity':1});
-      _branchName.clear();_address.clear();await _load();
-    }catch(e){_snack(e.toString());}
-  }
-  Future<void> _status(String id,String status) async {
-    try{await _db.from('appointments').update({'status':status}).eq('id',id);await _load();}
-    catch(e){_snack(e.toString());}
-  }
-  void _snack(String s)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s)));
 
   @override
-  Widget build(BuildContext context){
-    return Scaffold(backgroundColor:_bookingBg,appBar:AppBar(title:Text(tr('مدیریت کاراکال','CARACAL management')),backgroundColor:_bookingBg,actions:[IconButton(onPressed:_load,icon:const Icon(Icons.refresh))]),
-      body:_loading?const Center(child:CircularProgressIndicator()):_error!=null?Center(child:Text(_error!)):!_owner?Center(child:Text(tr('دسترسی مدیریت برای این حساب فعال نیست.','This account has no management access.'))):ListView(padding:const EdgeInsets.all(16),children:[
-        Text(tr('مدیریت شعب','Branch management'),style:const TextStyle(color:_bookingSilver,fontSize:19,fontWeight:FontWeight.bold)),
-        const SizedBox(height:12),
-        TextField(controller:_branchName,decoration:const InputDecoration(labelText:'نام شعبه')),
-        TextField(controller:_address,decoration:const InputDecoration(labelText:'آدرس')),
-        const SizedBox(height:8),FilledButton(onPressed:_addBranch,child:Text(tr('افزودن شعبه','Add branch'))),
-        ..._branches.map((b)=>Card(color:_bookingPanel,child:ListTile(title:Text(b['name']??''),subtitle:Text(b['address']??''),trailing:Text((b['active']==true)?tr('فعال','Active'):tr('غیرفعال','Inactive'))))),
-        const Divider(height:32),
-        Text(tr('نوبت‌ها','Appointments'),style:const TextStyle(color:_bookingSilver,fontSize:19,fontWeight:FontWeight.bold)),
-        ..._appointments.map((a){
-          final id=a['id'].toString();final status=a['status']?.toString()??'pending';
-          return Card(color:_bookingPanel,child:Padding(padding:const EdgeInsets.all(12),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-            Text('${a['customer_name']??''} • ${a['service']??''}',style:const TextStyle(fontWeight:FontWeight.bold)),
-            Text('${a['customer_phone']??''} | ${a['tracking_code']??''}'),
-            Text('${a['starts_at']??''} • $status',style:const TextStyle(color:_bookingSilver,fontSize:12)),
-            Wrap(spacing:8,children:[
-              TextButton(onPressed:()=>_status(id,'confirmed'),child:Text(tr('تأیید','Confirm'))),
-              TextButton(onPressed:()=>_status(id,'completed'),child:Text(tr('انجام شد','Complete'))),
-              TextButton(onPressed:()=>_status(id,'cancelled'),child:Text(tr('لغو','Cancel'))),
-            ])
-          ])));
-        })
-      ]));
+  Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(18), children: [
+    Text(t('درخواست نوبت کاراکال', 'CARACAL APPOINTMENTS'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+    const SizedBox(height: 6),
+    Text(t('درخواست خدمات تخصصی خودرو', 'Request a specialist vehicle service'), style: const TextStyle(color: Colors.white60)),
+    const SizedBox(height: 18),
+    if (!_signedIn) _card(Column(children: [const Icon(Icons.lock_outline, color: Colors.white70, size: 36), const SizedBox(height: 8), Text(t('برای ثبت نوبت باید وارد حساب کاربری شوی.', 'Please sign in to submit a booking.'), textAlign: TextAlign.center)])),
+    _card(Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      _field(_name, t('نام و نام خانوادگی', 'Full name')),
+      _field(_phone, t('شماره تماس', 'Phone number'), type: TextInputType.phone),
+      _field(_vehicle, t('مدل خودرو', 'Vehicle model')),
+      DropdownButtonFormField<String>(value: _service, decoration: InputDecoration(labelText: t('نوع خدمات', 'Service'), border: const OutlineInputBorder()), items: [
+        DropdownMenuItem(value: 'ریمپ و کالیبراسیون', child: Text(t('ریمپ و کالیبراسیون', 'ECU remapping & calibration'))),
+        DropdownMenuItem(value: 'عیب‌یابی تخصصی', child: Text(t('عیب‌یابی تخصصی', 'Advanced diagnostics'))),
+        DropdownMenuItem(value: 'مشاوره فنی', child: Text(t('مشاوره فنی', 'Technical consultation'))),
+        DropdownMenuItem(value: 'بررسی و بازبینی', child: Text(t('بررسی و بازبینی', 'Inspection'))),
+      ], onChanged: (v) => setState(() => _service = v ?? _service)),
+      const SizedBox(height: 12),
+      OutlinedButton.icon(onPressed: () async { final d = await showDatePicker(context: context, initialDate: _date, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 180))); if (d != null) setState(() => _date = d); }, icon: const Icon(Icons.calendar_today), label: Text('${t('تاریخ پیشنهادی: ', 'Preferred date: ')}${_date.year}/${_date.month}/${_date.day}')),
+      DropdownButtonFormField<String>(value: _time, decoration: InputDecoration(labelText: t('ساعت پیشنهادی', 'Preferred time'), border: const OutlineInputBorder()), items: ['09:00','10:00','11:00','12:00','14:00','15:00','16:00','17:00','18:00'].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(), onChanged: (v) => setState(() => _time = v ?? _time)),
+      const SizedBox(height: 12),
+      _field(_notes, t('توضیحات تکمیلی (اختیاری)', 'Additional notes (optional)'), lines: 3),
+      const SizedBox(height: 14),
+      FilledButton.icon(onPressed: _busy ? null : _submit, icon: _busy ? const SizedBox(width: 16,height: 16,child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send), label: Text(t('ثبت درخواست نوبت', 'SUBMIT BOOKING'))),
+    ])),
+    if (_message != null) Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: SelectableText(_message!, style: const TextStyle(color: Colors.white70))),
+    const SizedBox(height: 14),
+    Row(children: [Expanded(child: Text(t('درخواست‌های من / مدیریت نوبت‌ها', 'MY REQUESTS / BOOKING MANAGEMENT'), style: const TextStyle(fontWeight: FontWeight.w900))), IconButton(onPressed: _loadRequests, icon: const Icon(Icons.refresh, color: _bookingRed))]),
+    if (_requests.isEmpty) Text(t('هنوز درخواستی ثبت نشده است.', 'No booking requests yet.'), style: const TextStyle(color: Colors.white54)),
+    ..._requests.map(_requestCard),
+  ]);
+
+  Widget _field(TextEditingController c, String label, {TextInputType type = TextInputType.text, int lines = 1}) => Padding(padding: const EdgeInsets.only(bottom: 12), child: TextField(controller: c, keyboardType: type, maxLines: lines, decoration: InputDecoration(labelText: label, border: const OutlineInputBorder())));
+  Widget _card(Widget child) => Container(margin: const EdgeInsets.only(bottom: 14), padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: _bookingPanel, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white10)), child: child);
+  Widget _requestCard(Map<String, dynamic> row) {
+    final status = row['status']?.toString() ?? 'pending';
+    final statusText = {'pending': t('در انتظار بررسی','Pending'), 'confirmed': t('تأیید شده','Confirmed'), 'completed': t('انجام شده','Completed'), 'cancelled': t('لغو شده','Cancelled')}[status] ?? status;
+    return _card(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('${row['service'] ?? ''} • ${row['vehicle'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.bold)),
+      const SizedBox(height: 5),
+      Text('${row['preferred_date'] ?? ''}  ${row['preferred_time'] ?? ''}'),
+      Text('${t('وضعیت: ','Status: ')}$statusText', style: const TextStyle(color: _bookingRed, fontWeight: FontWeight.bold)),
+      if (row['customer_name'] != null) Text('${row['customer_name']} • ${row['phone'] ?? ''}', style: const TextStyle(color: Colors.white60, fontSize: 12)),
+      if (row['notes'] != null && row['notes'].toString().isNotEmpty) Text(row['notes'].toString(), style: const TextStyle(color: Colors.white54, fontSize: 12)),
+      if (_admin) Wrap(spacing: 8, children: [TextButton(onPressed: () => _changeStatus(row,'confirmed'), child: Text(t('تأیید','Confirm'))), TextButton(onPressed: () => _changeStatus(row,'completed'), child: Text(t('انجام شد','Complete'))), TextButton(onPressed: () => _changeStatus(row,'cancelled'), child: Text(t('لغو','Cancel')))]),
+    ]));
   }
+
 }
