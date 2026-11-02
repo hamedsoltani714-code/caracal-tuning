@@ -7,6 +7,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:video_player/video_player.dart';
 
 const String supabaseUrl = String.fromEnvironment('SUPABASE_URL');
 const String supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
@@ -49,9 +50,10 @@ class _CaracalAppState extends State<CaracalApp> {
   void initState() {
     super.initState();
     loadSettings();
-    Future.delayed(const Duration(milliseconds: 5700), () {
-      if (mounted) setState(() => ready = true);
-    });
+  }
+
+  void finishIntro() {
+    if (mounted && !ready) setState(() => ready = true);
   }
 
   Future<void> loadSettings() async {
@@ -164,202 +166,180 @@ class _CaracalAppState extends State<CaracalApp> {
                 ),
               ),
             )
-          : const IntroScreen(),
+          : IntroScreen(onFinished: finishIntro),
     );
   }
 }
 
-// INTRO — sound always starts automatically; no mute setting is exposed.
+// INTRO — plays the uploaded cinematic MP4 (including its own soundtrack).
 
 class IntroScreen extends StatefulWidget {
-  const IntroScreen({super.key});
+  final VoidCallback onFinished;
+  const IntroScreen({super.key, required this.onFinished});
 
   @override
   State<IntroScreen> createState() => _IntroScreenState();
 }
 
-class _IntroScreenState extends State<IntroScreen>
-    with TickerProviderStateMixin {
-  late final AnimationController controller;
-  late final AnimationController roarMotion;
-  final AudioPlayer enginePlayer = AudioPlayer();
-  final AudioPlayer roarPlayer = AudioPlayer();
-  Timer? roarTimer;
-  Timer? motionTimer;
+class _IntroScreenState extends State<IntroScreen> {
+  VideoPlayerController? _video;
+  Timer? _fallbackTimer;
+  bool _failed = false;
+  bool _finished = false;
 
   @override
   void initState() {
     super.initState();
-    controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 5200),
-    )..forward();
-    roarMotion = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 520),
-      lowerBound: -1,
-      upperBound: 1,
-    );
-    motionTimer = Timer(const Duration(milliseconds: 1050), () {
-      if (mounted) roarMotion.repeat(reverse: true);
-    });
-    Future.delayed(const Duration(milliseconds: 300), _playIntroSounds);
+    _initializeVideo();
   }
 
-  Future<void> _playIntroSounds() async {
+  Future<void> _initializeVideo() async {
     try {
-      await enginePlayer.setReleaseMode(ReleaseMode.stop);
-      await roarPlayer.setReleaseMode(ReleaseMode.stop);
-      await enginePlayer.setVolume(1.0);
-      await roarPlayer.setVolume(1.0);
-      await enginePlayer.play(AssetSource('Pagani-Zonda (2).mp3'));
-      roarTimer?.cancel();
-      roarTimer = Timer(const Duration(milliseconds: 1150), () async {
-        if (!mounted) return;
-        try {
-          await roarPlayer.play(AssetSource('Caracal (1).mp3'));
-        } catch (e) {
-          debugPrint('Caracal roar playback failed: $e');
-        }
-      });
+      final controller = VideoPlayerController.asset('assets/images/intro.mp4');
+      _video = controller;
+      await controller.initialize();
+      if (!mounted) {
+        await controller.dispose();
+        return;
+      }
+      await controller.setLooping(false);
+      await controller.setVolume(1.0);
+      controller.addListener(_videoListener);
+      await controller.play();
+      setState(() {});
+      // Safety fallback for devices/codecs that fail to report completion.
+      final duration = controller.value.duration;
+      _fallbackTimer = Timer(duration + const Duration(seconds: 2), _finish);
     } catch (e) {
-      debugPrint('Intro audio playback failed: $e');
+      debugPrint('CARACAL intro video failed: $e');
+      if (!mounted) return;
+      setState(() => _failed = true);
+      _fallbackTimer = Timer(const Duration(seconds: 3), _finish);
     }
+  }
+
+  void _videoListener() {
+    final controller = _video;
+    if (controller == null || !controller.value.isInitialized) return;
+    if (controller.value.hasError) {
+      debugPrint('CARACAL intro playback error: ${controller.value.errorDescription}');
+      _finish();
+    } else if (controller.value.isCompleted) {
+      _finish();
+    }
+  }
+
+  void _finish() {
+    if (_finished || !mounted) return;
+    _finished = true;
+    _fallbackTimer?.cancel();
+    widget.onFinished();
   }
 
   @override
   void dispose() {
-    roarTimer?.cancel();
-    motionTimer?.cancel();
-    enginePlayer.dispose();
-    roarPlayer.dispose();
-    controller.dispose();
-    roarMotion.dispose();
+    _fallbackTimer?.cancel();
+    _video?.removeListener(_videoListener);
+    _video?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final controller = _video;
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return Center(
-              child: SingleChildScrollView(
-                physics: const ClampingScrollPhysics(),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: AnimatedBuilder(
-                    animation: Listenable.merge([controller, roarMotion]),
-                    builder: (context, child) {
-                      final v = Curves.easeOutCubic.transform(controller.value);
-                      final shake = controller.value > .18 && controller.value < .78
-                          ? math.sin(roarMotion.value * math.pi * 3) * 5.0
-                          : 0.0;
-                      final pulse = 1 + (controller.value > .18 && controller.value < .78
-                          ? (roarMotion.value.abs() * .035)
-                          : 0.0);
-                      return Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Positioned.fill(child: CustomPaint(painter: IntroBackground(progress: v))),
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Transform.translate(
-                                offset: Offset(shake, 0),
-                                child: Transform.scale(
-                                  scale: (.58 + v * .42) * pulse,
-                                  child: Opacity(
-                                    opacity: v.clamp(0.0, 1.0),
-                                    child: Container(
-                                      width: math.min(constraints.maxWidth * .78, 330).toDouble(),
-                                      height: math.min(constraints.maxHeight * .34, 245).toDouble(),
-                                      decoration: BoxDecoration(
-                                        boxShadow: [
-                                          BoxShadow(color: red.withOpacity(.18 + .18 * pulse), blurRadius: 42, spreadRadius: 8),
-                                        ],
-                                      ),
-                                      child: Image.asset(
-                                        'assets/images/130315.png',
-                                        fit: BoxFit.contain,
-                                        alignment: Alignment.center,
-                                        errorBuilder: (context, error, stack) => const CustomPaint(painter: CaracalPainter()),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              Text('CARACAL', textAlign: TextAlign.center,
-                                style: TextStyle(fontSize: 38, fontWeight: FontWeight.w900, letterSpacing: 8, color: silver.withOpacity(v))),
-                              const Text('T U N I N G', style: TextStyle(color: red, fontSize: 15, letterSpacing: 8, fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 18),
-                              SizedBox(width: math.min(constraints.maxWidth * .82, 340).toDouble(), height: 150,
-                                child: AnimatedGauge(redline: true, animations: true, intro: true)),
-                              const SizedBox(height: 18),
-                              SizedBox(width: 230, height: 5,
-                                child: ClipRRect(borderRadius: BorderRadius.circular(10), child: LinearProgressIndicator(
-                                  value: v, backgroundColor: Colors.white12,
-                                  valueColor: const AlwaysStoppedAnimation<Color>(red)))),
-                              const SizedBox(height: 14),
-                              const Text('DRIVE • LEARN • UPGRADE', textAlign: TextAlign.center,
-                                style: TextStyle(color: Colors.white54, letterSpacing: 2, fontSize: 10)),
-                            ],
-                          ),
-                        ],
-                      );
-                    },
+      body: SizedBox.expand(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (controller != null && controller.value.isInitialized)
+              FittedBox(
+                fit: BoxFit.cover,
+                clipBehavior: Clip.hardEdge,
+                child: SizedBox(
+                  width: controller.value.size.width,
+                  height: controller.value.size.height,
+                  child: VideoPlayer(controller),
+                ),
+              )
+            else
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: Alignment.center,
+                    radius: 1.0,
+                    colors: [Color(0xFF292D33), Colors.black],
                   ),
                 ),
               ),
-            );
-          },
+            // Subtle dark footer keeps the brand readable without covering the clip.
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(20, 34, 20, 24),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Color(0xE6000000)],
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.asset(
+                      'assets/images/130315.png',
+                      width: 76,
+                      height: 62,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Icon(
+                        Icons.directions_car_filled,
+                        color: silver,
+                        size: 44,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    const Text(
+                      'CARACAL TUNING',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 19,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 3,
+                        shadows: [Shadow(color: Colors.black, blurRadius: 12)],
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    const Text(
+                      'DRIVE • LEARN • UPGRADE',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: red,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                    if (_failed) ...[
+                      const SizedBox(height: 12),
+                      const Text(
+                        'CARACAL TUNING',
+                        style: TextStyle(color: Colors.white54, fontSize: 9),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
-}
-
-class IntroBackground extends CustomPainter {
-  final double progress;
-  IntroBackground({required this.progress});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final line = Paint()
-      ..color = red.withOpacity(.13)
-      ..strokeWidth = 1;
-
-    for (int i = 0; i < 18; i++) {
-      final y = size.height * i / 18;
-      canvas.drawLine(
-        Offset(0, y + progress * 35),
-        Offset(size.width, y - progress * 35),
-        line,
-      );
-    }
-
-    final glow = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          red.withOpacity(.2),
-          Colors.transparent,
-        ],
-      ).createShader(
-        Rect.fromCircle(
-          center: Offset(size.width / 2, size.height / 2),
-          radius: size.width * .8,
-        ),
-      );
-
-    canvas.drawRect(Offset.zero & size, glow);
-  }
-
-  @override
-  bool shouldRepaint(covariant IntroBackground oldDelegate) => true;
 }
 
 // HOME
