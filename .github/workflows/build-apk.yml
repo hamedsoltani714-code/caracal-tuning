@@ -47,6 +47,38 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Fix file_picker Android SDK
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path.home() / ".pub-cache" / "hosted" / "pub.dev"
+          files = list(root.glob("file_picker-*/android/build.gradle"))
+          files += list(root.glob("file_picker-*/android/build.gradle.kts"))
+
+          if not files:
+              raise SystemExit("file_picker Gradle file not found")
+
+          for path in files:
+              content = path.read_text()
+
+              content = re.sub(
+                  r"compileSdkVersion\s+(?:\d+|flutter\.compileSdkVersion)",
+                  "compileSdkVersion 36",
+                  content
+              )
+
+              content = re.sub(
+                  r"compileSdk\s*=\s*(?:\d+|flutter\.compileSdkVersion)",
+                  "compileSdk = 36",
+                  content
+              )
+
+              path.write_text(content)
+              print("Updated:", path)
+          PY
+
       - name: Generate app icons
         run: dart run flutter_launcher_icons
 
