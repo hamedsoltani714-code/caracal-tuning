@@ -192,6 +192,69 @@ class _AdminHomeState extends State<AdminHome>{
     if(users.isEmpty)empty('کاربری برای نمایش وجود ندارد.'),
     ...users.map((u)=>card(ListTile(contentPadding:EdgeInsets.zero,leading:const Icon(Icons.person_outline,color:silver),title:Text(u['email']?.toString()??'بدون ایمیل'),subtitle:Text('نقش: '+(u['role']??'user').toString())))),
   ]);
+  Widget membershipsPage()=>ListView(padding:const EdgeInsets.all(14),children:[
+    Row(children:[const Expanded(child:Text('مدیریت اشتراک‌ها',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900))),FilledButton.icon(onPressed:()=>editMembership(),icon:const Icon(Icons.add),label:const Text('ثبت اشتراک'))]),
+    const SizedBox(height:10),
+    if(memberships.isEmpty)empty('اشتراکی ثبت نشده است.'),
+    ...memberships.map((m)=>card(Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      Text(users.firstWhere((u)=>u['id']==m['user_id'],orElse:()=>{'email':m['user_id']})['email']?.toString()??'کاربر',style:const TextStyle(fontWeight:FontWeight.bold)),
+      Text('طرح: ${m['plan']} • وضعیت: ${m['status']}',style:const TextStyle(color:silver)),
+      if((m['notes']??'').toString().isNotEmpty)Text(m['notes'].toString(),style:const TextStyle(color:silver)),
+      Row(children:[OutlinedButton(onPressed:()=>editMembership(existing:m),child:const Text('ویرایش')),const SizedBox(width:8),OutlinedButton(onPressed:()=>act(()async{await db.from('memberships').delete().eq('id',m['id']);}),child:const Text('حذف'))])
+    ]))),
+  ]);
+  Future<void> editMembership({Map<String,dynamic>? existing})async{
+    String? userId=existing?['user_id']?.toString()??(users.isNotEmpty?users.first['id']?.toString():null);
+    final plan=TextEditingController(text:existing?['plan']?.toString()??'standard');
+    final notes=TextEditingController(text:existing?['notes']?.toString()??'');
+    String status=existing?['status']?.toString()??'pending';
+    await showDialog(context:context,builder:(ctx)=>StatefulBuilder(builder:(ctx,setDialog)=>AlertDialog(
+      backgroundColor:panel,title:Text(existing==null?'اشتراک جدید':'ویرایش اشتراک'),
+      content:SizedBox(width:420,child:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
+        DropdownButtonFormField<String>(value:userId,decoration:const InputDecoration(labelText:'کاربر'),items:users.map((u)=>DropdownMenuItem(value:u['id'].toString(),child:Text(u['email']?.toString()??u['id'].toString()))).toList(),onChanged:(v)=>setDialog(()=>userId=v)),
+        TextField(controller:plan,decoration:const InputDecoration(labelText:'نام طرح')),
+        DropdownButtonFormField<String>(value:status,decoration:const InputDecoration(labelText:'وضعیت'),items:['pending','active','expired','cancelled'].map((v)=>DropdownMenuItem(value:v,child:Text(v))).toList(),onChanged:(v)=>setDialog(()=>status=v??status)),
+        TextField(controller:notes,maxLines:3,decoration:const InputDecoration(labelText:'یادداشت')),
+      ]))),
+      actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('لغو')),FilledButton(onPressed:userId==null?null:()async{
+        final data=<String,dynamic>{'user_id':userId,'plan':plan.text.trim(),'status':status,'notes':notes.text.trim(),if(existing==null)'created_by':db.auth.currentUser!.id};
+        Navigator.pop(ctx);await act(()async{if(existing==null){await db.from('memberships').insert(data);}else{await db.from('memberships').update(data).eq('id',existing['id']);}});
+      },child:const Text('ذخیره'))],
+    )));
+    plan.dispose();notes.dispose();
+  }
+  Widget notificationsPage()=>ListView(padding:const EdgeInsets.all(14),children:[
+    Row(children:[const Expanded(child:Text('مرکز اعلان‌ها',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900))),FilledButton.icon(onPressed:()=>editNotification(),icon:const Icon(Icons.add),label:const Text('اعلان جدید'))]),
+    const SizedBox(height:10),
+    if(notifications.isEmpty)empty('اعلانی ثبت نشده است.'),
+    ...notifications.map((n)=>card(Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      Text(n['title_fa']?.toString()??'',style:const TextStyle(fontWeight:FontWeight.bold)),
+      Text(n['body_fa']?.toString()??'',maxLines:3,overflow:TextOverflow.ellipsis,style:const TextStyle(color:silver)),
+      Row(children:[Text(n['is_published']==true?'منتشرشده':'پیش‌نویس',style:const TextStyle(color:red)),const Spacer(),OutlinedButton(onPressed:()=>editNotification(existing:n),child:const Text('ویرایش')),IconButton(onPressed:()=>act(()async{await db.from('app_notifications').delete().eq('id',n['id']);}),icon:const Icon(Icons.delete_outline,color:red))])
+    ]))),
+  ]);
+  Future<void> editNotification({Map<String,dynamic>? existing})async{
+    final titleFa=TextEditingController(text:existing?['title_fa']?.toString()??'');
+    final titleEn=TextEditingController(text:existing?['title_en']?.toString()??'');
+    final bodyFa=TextEditingController(text:existing?['body_fa']?.toString()??'');
+    final bodyEn=TextEditingController(text:existing?['body_en']?.toString()??'');
+    bool published=existing?['is_published']==true;
+    await showDialog(context:context,builder:(ctx)=>StatefulBuilder(builder:(ctx,setDialog)=>AlertDialog(
+      backgroundColor:panel,title:Text(existing==null?'اعلان جدید':'ویرایش اعلان'),
+      content:SizedBox(width:460,child:SingleChildScrollView(child:Column(children:[
+        TextField(controller:titleFa,decoration:const InputDecoration(labelText:'عنوان فارسی')),
+        TextField(controller:titleEn,decoration:const InputDecoration(labelText:'عنوان انگلیسی')),
+        TextField(controller:bodyFa,maxLines:4,decoration:const InputDecoration(labelText:'متن فارسی')),
+        TextField(controller:bodyEn,maxLines:4,decoration:const InputDecoration(labelText:'متن انگلیسی')),
+        SwitchListTile(value:published,onChanged:(v)=>setDialog(()=>published=v),title:const Text('انتشار اعلان')),
+      ]))),
+      actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('لغو')),FilledButton(onPressed:()async{
+        final data=<String,dynamic>{'title_fa':titleFa.text.trim(),'title_en':titleEn.text.trim(),'body_fa':bodyFa.text.trim(),'body_en':bodyEn.text.trim(),'is_published':published,if(existing==null)'created_by':db.auth.currentUser!.id};
+        Navigator.pop(ctx);await act(()async{if(existing==null){await db.from('app_notifications').insert(data);}else{await db.from('app_notifications').update(data).eq('id',existing['id']);}});
+      },child:const Text('ذخیره'))],
+    )));
+    titleFa.dispose();titleEn.dispose();bodyFa.dispose();bodyEn.dispose();
+  }
   Widget adminsPage()=>ListView(padding:const EdgeInsets.all(14),children:[
     const Text('مدیریت مدیران',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900)),
     card(InviteAdmin(onInvite:invite)),
