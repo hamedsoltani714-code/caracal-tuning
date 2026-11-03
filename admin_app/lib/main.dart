@@ -180,7 +180,7 @@ class _AdminHomeState extends State<AdminHome>{
   Future<void> editLesson({Map<String,dynamic>? existing})async{
     final l=<String,dynamic>{'id':existing?['id'], 'title_fa':existing?['title_fa']??existing?['title']??'','title_en':existing?['title_en']??'','summary_fa':existing?['summary_fa']??existing?['summary']??'','summary_en':existing?['summary_en']??'','body_fa':existing?['body_fa']??existing?['body']??'','body_en':existing?['body_en']??'','category':existing?['category']??'general','is_published':existing?['is_published']==true};
     final c=<String,TextEditingController>{for(final k in ['title_fa','title_en','summary_fa','summary_en','body_fa','body_en','category'])k:TextEditingController(text:l[k].toString())};
-    bool published=l['is_published']==true;
+    bool published=canPublish && l['is_published']==true;
     await showDialog(context:context,builder:(ctx)=>StatefulBuilder(builder:(ctx,setDialog)=>AlertDialog(backgroundColor:panel,title:Text(existing==null?'آموزش جدید':'ویرایش آموزش'),content:SizedBox(width:480,child:SingleChildScrollView(child:Column(children:[
       for(final e in {'title_fa':'عنوان فارسی','title_en':'عنوان انگلیسی','summary_fa':'خلاصه فارسی','summary_en':'خلاصه انگلیسی','body_fa':'متن فارسی','body_en':'متن انگلیسی','category':'دسته‌بندی'}.entries)Padding(padding:const EdgeInsets.only(bottom:8),child:TextField(controller:c[e.key],maxLines:e.key.startsWith('body')?4:1,decoration:InputDecoration(labelText:e.value))),
       SwitchListTile(value:published,onChanged:canPublish?(v)=>setDialog(()=>published=v):null,title:const Text('انتشار مطلب'),subtitle:canPublish?null:const Text('انتشار فقط با مجوز مالک امکان‌پذیر است.')), 
@@ -284,7 +284,7 @@ class _AdminPermissionsState extends State<AdminPermissions>{
   @override void initState(){super.initState();p=Map<String,dynamic>.from(widget.user['permissions']??{});}
   @override Widget build(BuildContext context)=>Container(margin:const EdgeInsets.only(bottom:10),padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:panel,borderRadius:BorderRadius.circular(16)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
     Text(widget.user['email']?.toString()??'',style:const TextStyle(fontWeight:FontWeight.bold)),
-    for(final e in {'manage_content':'مدیریت محتوا','publish_content':'انتشار محتوا','manage_users':'مدیریت کاربران','manage_bookings':'مدیریت نوبت‌ها'}.entries)CheckboxListTile(contentPadding:EdgeInsets.zero,dense:true,value:p[e.key]==true,onChanged:(v)=>setState(()=>p[e.key]=v??false),title:Text(e.value)),
+    for(final e in {'manage_content':'مدیریت محتوا','publish_content':'انتشار محتوا','manage_users':'مدیریت کاربران','manage_bookings':'مدیریت نوبت‌ها','manage_memberships':'مدیریت اشتراک‌ها','manage_notifications':'مدیریت اعلان‌ها'}.entries)CheckboxListTile(contentPadding:EdgeInsets.zero,dense:true,value:p[e.key]==true,onChanged:(v)=>setState(()=>p[e.key]=v??false),title:Text(e.value)),
     Align(alignment:Alignment.centerLeft,child:OutlinedButton(onPressed:()=>widget.onSave(widget.user['id'].toString(),p),child:const Text('ذخیره دسترسی‌ها'))),
   ]));
 }
