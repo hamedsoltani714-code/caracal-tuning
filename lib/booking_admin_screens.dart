@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:persian_datetime_picker/persian_datetime_picker.dart';
@@ -35,6 +37,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
   String? _message;
   List<Map<String, dynamic>> _requests = [];
+  StreamSubscription<AuthState>? _authSubscription;
 
   bool get _en => widget.english;
 
@@ -64,11 +67,18 @@ class _BookingScreenState extends State<BookingScreen> {
   @override
   void initState() {
     super.initState();
+    final client = _client;
+    if (client != null) {
+      _authSubscription = client.auth.onAuthStateChange.listen((_) {
+        _loadRequests();
+      });
+    }
     _loadRequests();
   }
 
   @override
   void dispose() {
+    _authSubscription?.cancel();
     _name.dispose();
     _phone.dispose();
     _vehicle.dispose();
