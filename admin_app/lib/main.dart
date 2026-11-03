@@ -53,7 +53,7 @@ class LoginPage extends StatefulWidget {
   @override State<LoginPage> createState()=>_LoginPageState();
 }
 class _LoginPageState extends State<LoginPage>{
-  final email=TextEditingController(text:ownerEmail),pass=TextEditingController(),code=TextEditingController();
+  final email=TextEditingController(),pass=TextEditingController(),code=TextEditingController();
   bool otp=false,busy=false,hide=true;String? error;
   @override void dispose(){email.dispose();pass.dispose();code.dispose();super.dispose();}
   Future<void> run(Future<void> Function() action) async {
@@ -139,7 +139,7 @@ class _AdminHomeState extends State<AdminHome>{
       IconButton(onPressed:busy?null:refresh,icon:const Icon(Icons.refresh)),IconButton(onPressed:()=>db.auth.signOut(),icon:const Icon(Icons.logout))
     ]),
     body:Column(children:[
-      Padding(padding:const EdgeInsets.fromLTRB(16,0,16,12),child:Row(children:[const CircleAvatar(backgroundColor:panel,child:Icon(Icons.verified_user,color:silver)),const SizedBox(width:10),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(widget.profile['email']?.toString()??''),Text(owner?'OWNER • مالک اصلی':'ADMIN • مدیر',style:const TextStyle(color:red,fontSize:10,fontWeight:FontWeight.bold))]))])),
+      Padding(padding:const EdgeInsets.fromLTRB(16,0,16,12),child:Row(children:[const CircleAvatar(backgroundColor:panel,child:Icon(Icons.verified_user,color:silver)),const SizedBox(width:10),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(owner?'مالک اصلی':(widget.profile['email']?.toString()??'')),Text(owner?'OWNER • مالک اصلی':'ADMIN • مدیر',style:const TextStyle(color:red,fontSize:10,fontWeight:FontWeight.bold))]))])),
       if(error!=null)Padding(padding:const EdgeInsets.all(10),child:Text(error!,style:const TextStyle(color:Colors.orangeAccent))),
       if(busy)const LinearProgressIndicator(color:red,minHeight:2),
       Expanded(child:RefreshIndicator(color:red,onRefresh:refresh,child:IndexedStack(index:tab,children:pages.map((p)=>p.page).toList()))),
@@ -226,14 +226,14 @@ class _AdminHomeState extends State<AdminHome>{
   Widget usersPage()=>ListView(padding:const EdgeInsets.all(14),children:[
     const Text('کاربران',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900)),
     if(users.isEmpty)empty('کاربری برای نمایش وجود ندارد.'),
-    ...users.map((u)=>card(ListTile(contentPadding:EdgeInsets.zero,leading:const Icon(Icons.person_outline,color:silver),title:Text(u['email']?.toString()??'بدون ایمیل'),subtitle:Text('نقش: '+(u['role']??'user').toString())))),
+    ...users.map((u)=>card(ListTile(contentPadding:EdgeInsets.zero,leading:const Icon(Icons.person_outline,color:silver),title:Text(u['role']=='owner'?'مالک اصلی':(u['email']?.toString()??'بدون ایمیل')),subtitle:Text('نقش: '+(u['role']??'user').toString())))),
   ]);
   Widget membershipsPage()=>ListView(padding:const EdgeInsets.all(14),children:[
     Row(children:[const Expanded(child:Text('مدیریت اشتراک‌ها',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900))),FilledButton.icon(onPressed:()=>editMembership(),icon:const Icon(Icons.add),label:const Text('ثبت اشتراک'))]),
     const SizedBox(height:10),
     if(memberships.isEmpty)empty('اشتراکی ثبت نشده است.'),
     ...memberships.map((m)=>card(Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-      Text(users.firstWhere((u)=>u['id']==m['user_id'],orElse:()=>{'email':m['user_id']})['email']?.toString()??'کاربر',style:const TextStyle(fontWeight:FontWeight.bold)),
+      Text((()=>users.firstWhere((u)=>u['id']==m['user_id'],orElse:()=>{'email':m['user_id']})['role']=='owner'?'مالک اصلی':(users.firstWhere((u)=>u['id']==m['user_id'],orElse:()=>{'email':m['user_id']})['email']?.toString()??'کاربر'))(),style:const TextStyle(fontWeight:FontWeight.bold)),
       Text('طرح: ${m['plan']} • وضعیت: ${m['status']}',style:const TextStyle(color:silver)),
       if((m['notes']??'').toString().isNotEmpty)Text(m['notes'].toString(),style:const TextStyle(color:silver)),
       Row(children:[OutlinedButton(onPressed:()=>editMembership(existing:m),child:const Text('ویرایش')),const SizedBox(width:8),OutlinedButton(onPressed:()=>act(()async{await db.from('memberships').delete().eq('id',m['id']);}),child:const Text('حذف'))])
@@ -319,7 +319,7 @@ class _AdminPermissionsState extends State<AdminPermissions>{
   late Map<String,dynamic> p;
   @override void initState(){super.initState();p=Map<String,dynamic>.from(widget.user['permissions']??{});}
   @override Widget build(BuildContext context)=>Container(margin:const EdgeInsets.only(bottom:10),padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:panel,borderRadius:BorderRadius.circular(16)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-    Text(widget.user['email']?.toString()??'',style:const TextStyle(fontWeight:FontWeight.bold)),
+    Text(widget.user['role']=='owner'?'مالک اصلی':(widget.user['email']?.toString()??''),style:const TextStyle(fontWeight:FontWeight.bold)),
     for(final e in {'manage_content':'مدیریت محتوا','publish_content':'انتشار محتوا','manage_users':'مدیریت کاربران','manage_bookings':'مدیریت نوبت‌ها','manage_memberships':'مدیریت اشتراک‌ها','manage_notifications':'مدیریت اعلان‌ها'}.entries)CheckboxListTile(contentPadding:EdgeInsets.zero,dense:true,value:p[e.key]==true,onChanged:(v)=>setState(()=>p[e.key]=v??false),title:Text(e.value)),
     Align(alignment:Alignment.centerLeft,child:OutlinedButton(onPressed:()=>widget.onSave(widget.user['id'].toString(),p),child:const Text('ذخیره دسترسی‌ها'))),
   ]));
