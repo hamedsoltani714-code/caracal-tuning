@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:video_player/video_player.dart';
@@ -1529,7 +1528,6 @@ class _GarageScreenState extends State<GarageScreen> {
 
   Widget _accountCard() {
     final user = client.auth.currentUser!;
-    final role = profile?['role']?.toString() ?? 'user';
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       _card(Column(children: [
         const Icon(Icons.verified_user_outlined, size: 48, color: silver),
