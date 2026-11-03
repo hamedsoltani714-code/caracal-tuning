@@ -277,6 +277,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
   Future<void> _selectDate() async {
     DateTime? selectedDate;
+
     if (_en) {
       selectedDate = await showDatePicker(
         context: context,
@@ -299,8 +300,8 @@ class _BookingScreenState extends State<BookingScreen> {
         initialDate: Jalali.fromDateTime(_date),
         firstDate: Jalali.now(),
         lastDate: Jalali.fromDateTime(
-  DateTime.now().add(const Duration(days: 180)),
-),
+          DateTime.now().add(const Duration(days: 180)),
+        ),
         helpText: 'انتخاب تاریخ نوبت',
         cancelText: 'لغو',
         confirmText: 'تأیید',
@@ -315,6 +316,7 @@ class _BookingScreenState extends State<BookingScreen> {
           child: child!,
         ),
       );
+
       selectedDate = selectedJalali?.toDateTime();
     }
 
@@ -327,7 +329,9 @@ class _BookingScreenState extends State<BookingScreen> {
     if (_en) {
       return '${_date.year}/${_date.month.toString().padLeft(2, '0')}/${_date.day.toString().padLeft(2, '0')}';
     }
+
     final jalali = Jalali.fromDateTime(_date);
+
     return '${jalali.year}/${jalali.month.toString().padLeft(2, '0')}/${jalali.day.toString().padLeft(2, '0')}';
   }
 
@@ -364,9 +368,7 @@ class _BookingScreenState extends State<BookingScreen> {
               ),
             ],
           ),
-
           const SizedBox(height: 6),
-
           Text(
             t(
               'درخواست خدمات تخصصی خودرو',
@@ -377,9 +379,7 @@ class _BookingScreenState extends State<BookingScreen> {
               fontSize: 13,
             ),
           ),
-
           const SizedBox(height: 20),
-
           if (!_configured)
             _card(
               Text(
@@ -390,7 +390,6 @@ class _BookingScreenState extends State<BookingScreen> {
                 style: const TextStyle(color: Colors.orangeAccent),
               ),
             ),
-
           if (!_signedIn)
             _card(
               Column(
@@ -412,7 +411,6 @@ class _BookingScreenState extends State<BookingScreen> {
                 ],
               ),
             ),
-
           _card(
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -422,22 +420,18 @@ class _BookingScreenState extends State<BookingScreen> {
                   t('نام و نام خانوادگی', 'Full name'),
                   icon: Icons.person_outline,
                 ),
-
                 _field(
                   _phone,
                   t('شماره تماس', 'Phone number'),
                   type: TextInputType.phone,
                   icon: Icons.phone_outlined,
                 ),
-
                 _field(
                   _vehicle,
                   t('مدل خودرو', 'Vehicle model'),
                   icon: Icons.directions_car_outlined,
                 ),
-
                 const SizedBox(height: 4),
-
                 DropdownButtonFormField<String>(
                   value: _service,
                   isExpanded: true,
@@ -487,9 +481,7 @@ class _BookingScreenState extends State<BookingScreen> {
                     }
                   },
                 ),
-
                 const SizedBox(height: 14),
-
                 OutlinedButton.icon(
                   onPressed: _selectDate,
                   icon: const Icon(Icons.calendar_today),
@@ -497,9 +489,7 @@ class _BookingScreenState extends State<BookingScreen> {
                     '${t('تاریخ پیشنهادی: ', 'Preferred date: ')}${_formattedDate()}',
                   ),
                 ),
-
                 const SizedBox(height: 12),
-
                 DropdownButtonFormField<String>(
                   value: _time,
                   isExpanded: true,
@@ -533,9 +523,7 @@ class _BookingScreenState extends State<BookingScreen> {
                     }
                   },
                 ),
-
                 const SizedBox(height: 12),
-
                 _field(
                   _notes,
                   t(
@@ -545,9 +533,7 @@ class _BookingScreenState extends State<BookingScreen> {
                   lines: 3,
                   icon: Icons.notes,
                 ),
-
                 const SizedBox(height: 14),
-
                 SizedBox(
                   height: 52,
                   child: FilledButton.icon(
@@ -579,7 +565,6 @@ class _BookingScreenState extends State<BookingScreen> {
               ],
             ),
           ),
-
           if (_message != null)
             _card(
               SelectableText(
@@ -590,9 +575,7 @@ class _BookingScreenState extends State<BookingScreen> {
                 ),
               ),
             ),
-
           const SizedBox(height: 10),
-
           Row(
             children: [
               Expanded(
@@ -617,9 +600,7 @@ class _BookingScreenState extends State<BookingScreen> {
                 ),
             ],
           ),
-
           const SizedBox(height: 12),
-
           if (!_signedIn)
             Text(
               t(
@@ -636,9 +617,7 @@ class _BookingScreenState extends State<BookingScreen> {
               ),
               style: const TextStyle(color: Colors.white54),
             ),
-
           ..._requests.map(_requestCard),
-
           const SizedBox(height: 30),
         ],
       ),
@@ -711,16 +690,12 @@ class _BookingScreenState extends State<BookingScreen> {
               fontSize: 14,
             ),
           ),
-
           const SizedBox(height: 7),
-
           Text(
             '${row['preferred_date'] ?? ''}  ${row['preferred_time'] ?? ''}',
             style: const TextStyle(color: _bookingSilver),
           ),
-
           const SizedBox(height: 5),
-
           Text(
             '${t('وضعیت: ', 'Status: ')}$statusText',
             style: const TextStyle(
@@ -728,7 +703,6 @@ class _BookingScreenState extends State<BookingScreen> {
               fontWeight: FontWeight.bold,
             ),
           ),
-
           if (row['customer_name'] != null)
             Padding(
               padding: const EdgeInsets.only(top: 5),
@@ -740,7 +714,6 @@ class _BookingScreenState extends State<BookingScreen> {
                 ),
               ),
             ),
-
           if (row['notes'] != null &&
               row['notes'].toString().trim().isNotEmpty)
             Padding(
@@ -753,10 +726,8 @@ class _BookingScreenState extends State<BookingScreen> {
                 ),
               ),
             ),
-
           if (_admin) ...[
             const Divider(height: 22, color: Colors.white12),
-
             Wrap(
               spacing: 8,
               runSpacing: 4,
