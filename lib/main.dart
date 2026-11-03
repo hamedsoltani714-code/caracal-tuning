@@ -232,6 +232,9 @@ class _IntroScreenState extends State<IntroScreen> {
   @override
   void initState() {
     super.initState();
+    // These MP3 files are declared at the project root in pubspec.yaml.
+    _roarPlayer.audioCache = AudioCache(prefix: '');
+    _enginePlayer.audioCache = AudioCache(prefix: '');
     if (widget.soundEnabled) unawaited(_playIntroAudio());
     _initializeVideo();
   }
@@ -267,10 +270,10 @@ class _IntroScreenState extends State<IntroScreen> {
     try {
       await _roarPlayer.setReleaseMode(ReleaseMode.stop);
       await _enginePlayer.setReleaseMode(ReleaseMode.stop);
-      await _roarPlayer.play(AssetSource('Caracal (1).mp3', prefix: ''));
+      await _roarPlayer.play(AssetSource('Caracal (1).mp3'));
       await Future<void>.delayed(const Duration(milliseconds: 650));
       if (!_finished && mounted) {
-        await _enginePlayer.play(AssetSource('Pagani-Zonda (2).mp3', prefix: ''));
+        await _enginePlayer.play(AssetSource('Pagani-Zonda (2).mp3'));
       }
     } catch (e) {
       debugPrint('CARACAL intro audio failed: $e');
