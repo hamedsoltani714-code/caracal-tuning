@@ -24,7 +24,7 @@ class Gate extends StatelessWidget {
   const Gate({super.key});
   @override Widget build(BuildContext context) => StreamBuilder<AuthState>(
     stream:db.auth.onAuthStateChange,
-    builder:(context,snap)=>db.auth.currentSession==null?const LoginPage():const AccessCheck(),
+    builder:(context,_)=>db.auth.currentSession==null?const LoginPage():const AccessCheck(),
   );
 }
 class AccessCheck extends StatefulWidget {
