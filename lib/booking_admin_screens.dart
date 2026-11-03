@@ -115,8 +115,7 @@ class _BookingScreenState extends State<BookingScreen> {
       );
 
       final isAdmin = role == 'owner' ||
-          role == 'admin' ||
-          permissions['manage_bookings'] == true;
+          (role == 'admin' && permissions['manage_bookings'] == true);
 
       final rows = isAdmin
           ? await client
