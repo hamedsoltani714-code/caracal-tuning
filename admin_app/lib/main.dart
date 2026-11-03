@@ -83,19 +83,24 @@ class AdminHome extends StatefulWidget {
 }
 class _AdminHomeState extends State<AdminHome>{
   int tab=0;bool busy=false;String? error;
-  List<Map<String,dynamic>> bookings=[],lessons=[],users=[];
+  List<Map<String,dynamic>> bookings=[],lessons=[],users=[],memberships=[],notifications=[];
   bool get owner=>widget.profile['role']=='owner';
   Map<String,dynamic> get perms=>Map<String,dynamic>.from(widget.profile['permissions']??{});
   bool get canBookings=>owner||perms['manage_bookings']==true;
   bool get canContent=>owner||perms['manage_content']==true;
   bool get canUsers=>owner||perms['manage_users']==true;
+  bool get canPublish=>owner||perms['publish_content']==true;
+  bool get canMemberships=>owner||perms['manage_memberships']==true;
+  bool get canNotifications=>owner||perms['manage_notifications']==true;
   @override void initState(){super.initState();refresh();}
   Future<void> refresh()async{
     if(mounted)setState((){busy=true;error=null;});
     try{
       if(canBookings){final r=await db.from('booking_requests').select('*').order('created_at',ascending:false).limit(200);bookings=List<Map<String,dynamic>>.from(r);}
       if(canContent){final r=await db.from('lessons').select('*').order('created_at',ascending:false).limit(200);lessons=List<Map<String,dynamic>>.from(r);}
-      if(owner||canUsers){final r=await db.from('profiles').select('id,email,role,permissions').order('created_at',ascending:false).limit(300);users=List<Map<String,dynamic>>.from(r);}
+      if(owner||canUsers||canMemberships){final r=await db.from('profiles').select('id,email,role,permissions').order('created_at',ascending:false).limit(300);users=List<Map<String,dynamic>>.from(r);}
+      if(canMemberships){final r=await db.from('memberships').select('*').order('created_at',ascending:false).limit(300);memberships=List<Map<String,dynamic>>.from(r);}
+      if(canNotifications){final r=await db.from('app_notifications').select('*').order('created_at',ascending:false).limit(300);notifications=List<Map<String,dynamic>>.from(r);}
     }catch(e){error=e.toString();}
     if(mounted)setState(()=>busy=false);
   }
@@ -107,7 +112,7 @@ class _AdminHomeState extends State<AdminHome>{
   Future<void> changeBooking(Map<String,dynamic>b,String status)=>act(()async{await db.from('booking_requests').update({'status':status}).eq('id',b['id']);});
   Future<void> saveLesson(Map<String,dynamic> l)=>act(()async{
     final data=<String,dynamic>{for(final k in ['title','title_fa','title_en','summary','summary_fa','summary_en','body','body_fa','body_en','category','is_published','media_url','media_type'])if(l.containsKey(k))k:l[k]};
-    if(l['id']==null||l['id']==0){await db.from('lessons').insert(data);}else{await db.from('lessons').update(data).eq('id',l['id']);}
+    if(l['id']==null){data['created_by']=db.auth.currentUser!.id; if(!canPublish)data['is_published']=false; await db.from('lessons').insert(data);}else{if(!canPublish)data['is_published']=false; await db.from('lessons').update(data).eq('id',l['id']);}
   });
   Future<void> invite(String mail,Map<String,bool> p)=>act(()async{
     if(!owner)throw Exception('فقط مالک اجازه دعوت مدیر دارد.');
@@ -123,6 +128,8 @@ class _AdminHomeState extends State<AdminHome>{
       (name:'خانه',icon:Icons.dashboard_outlined,page:overview()),
       if(canBookings)(name:'نوبت‌ها',icon:Icons.calendar_month_outlined,page:bookingPage()),
       if(canContent)(name:'آموزش',icon:Icons.school_outlined,page:contentPage()),
+      if(canMemberships)(name:'اشتراک‌ها',icon:Icons.workspace_premium_outlined,page:membershipsPage()),
+      if(canNotifications)(name:'اعلان‌ها',icon:Icons.notifications_active_outlined,page:notificationsPage()),
       if(owner||canUsers)(name:'کاربران',icon:Icons.people_outline,page:usersPage()),
       if(owner)(name:'مدیران',icon:Icons.admin_panel_settings_outlined,page:adminsPage()),
     ];
@@ -171,12 +178,12 @@ class _AdminHomeState extends State<AdminHome>{
     ...lessons.map((l)=>card(ListTile(contentPadding:EdgeInsets.zero,title:Text((l['title_fa']??l['title']??'بدون عنوان').toString()),subtitle:Text((l['title_en']??'').toString()+' • '+((l['is_published']==true)?'منتشرشده':'پیش‌نویس')),trailing:IconButton(onPressed:()=>editLesson(existing:l),icon:const Icon(Icons.edit,color:silver))))),
   ]);
   Future<void> editLesson({Map<String,dynamic>? existing})async{
-    final l=<String,dynamic>{'id':existing?['id']??0,'title_fa':existing?['title_fa']??existing?['title']??'','title_en':existing?['title_en']??'','summary_fa':existing?['summary_fa']??existing?['summary']??'','summary_en':existing?['summary_en']??'','body_fa':existing?['body_fa']??existing?['body']??'','body_en':existing?['body_en']??'','category':existing?['category']??'general','is_published':existing?['is_published']==true};
+    final l=<String,dynamic>{'id':existing?['id'], 'title_fa':existing?['title_fa']??existing?['title']??'','title_en':existing?['title_en']??'','summary_fa':existing?['summary_fa']??existing?['summary']??'','summary_en':existing?['summary_en']??'','body_fa':existing?['body_fa']??existing?['body']??'','body_en':existing?['body_en']??'','category':existing?['category']??'general','is_published':existing?['is_published']==true};
     final c=<String,TextEditingController>{for(final k in ['title_fa','title_en','summary_fa','summary_en','body_fa','body_en','category'])k:TextEditingController(text:l[k].toString())};
     bool published=l['is_published']==true;
     await showDialog(context:context,builder:(ctx)=>StatefulBuilder(builder:(ctx,setDialog)=>AlertDialog(backgroundColor:panel,title:Text(existing==null?'آموزش جدید':'ویرایش آموزش'),content:SizedBox(width:480,child:SingleChildScrollView(child:Column(children:[
       for(final e in {'title_fa':'عنوان فارسی','title_en':'عنوان انگلیسی','summary_fa':'خلاصه فارسی','summary_en':'خلاصه انگلیسی','body_fa':'متن فارسی','body_en':'متن انگلیسی','category':'دسته‌بندی'}.entries)Padding(padding:const EdgeInsets.only(bottom:8),child:TextField(controller:c[e.key],maxLines:e.key.startsWith('body')?4:1,decoration:InputDecoration(labelText:e.value))),
-      SwitchListTile(value:published,onChanged:(v)=>setDialog(()=>published=v),title:const Text('انتشار مطلب')),
+      SwitchListTile(value:published,onChanged:canPublish?(v)=>setDialog(()=>published=v):null,title:const Text('انتشار مطلب'),subtitle:canPublish?null:const Text('انتشار فقط با مجوز مالک امکان‌پذیر است.')), 
     ]))),actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('انصراف')),FilledButton(onPressed:busy?null:()async{for(final k in c.keys){l[k]=c[k]!.text.trim();}l['is_published']=published;Navigator.pop(ctx);await saveLesson(l);},child:const Text('ذخیره'))])));
     for(final x in c.values){x.dispose();}
   }
@@ -196,11 +203,11 @@ class InviteAdmin extends StatefulWidget{
   @override State<InviteAdmin> createState()=>_InviteAdminState();
 }
 class _InviteAdminState extends State<InviteAdmin>{
-  final email=TextEditingController();final p=<String,bool>{'manage_content':true,'publish_content':false,'manage_users':false,'manage_bookings':false};bool busy=false;
+  final email=TextEditingController();final p=<String,bool>{'manage_content':true,'publish_content':false,'manage_users':false,'manage_bookings':false,'manage_memberships':false,'manage_notifications':false};bool busy=false;
   @override void dispose(){email.dispose();super.dispose();}
   @override Widget build(BuildContext context)=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-    const Text('دعوت مدیر جدید',style:TextStyle(fontSize:16,fontWeight:FontWeight.bold)),TextField(controller:email,decoration:const InputDecoration(labelText:'ایمیل مدیر')),
-    for(final e in {'manage_content':'مدیریت محتوا','publish_content':'انتشار محتوا','manage_users':'مدیریت کاربران','manage_bookings':'مدیریت نوبت‌ها'}.entries)CheckboxListTile(contentPadding:EdgeInsets.zero,dense:true,value:p[e.key],onChanged:(v)=>setState(()=>p[e.key]=v??false),title:Text(e.value)),
+    const Text('دعوت مدیر جدید',style:TextStyle(fontSize:16,fontWeight:FontWeight.bold)),TextField(controller:email,onChanged:(_)=>setState((){}),keyboardType:TextInputType.emailAddress,decoration:const InputDecoration(labelText:'ایمیل مدیر')), 
+    for(final e in {'manage_content':'مدیریت محتوا','publish_content':'انتشار محتوا','manage_users':'مدیریت کاربران','manage_bookings':'مدیریت نوبت‌ها','manage_memberships':'مدیریت اشتراک‌ها','manage_notifications':'مدیریت اعلان‌ها'}.entries)CheckboxListTile(contentPadding:EdgeInsets.zero,dense:true,value:p[e.key],onChanged:(v)=>setState(()=>p[e.key]=v??false),title:Text(e.value)),
     SizedBox(width:double.infinity,child:FilledButton(onPressed:busy||!email.text.contains('@')?null:()async{setState(()=>busy=true);try{await widget.onInvite(email.text.trim(),p);email.clear();if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('درخواست دعوت ارسال شد.')));}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString())));}finally{if(mounted)setState(()=>busy=false);}},child:Text(busy?'در حال ارسال…':'دعوت مدیر'))),
   ]);
 }
