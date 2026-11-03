@@ -482,12 +482,17 @@ class HomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               SizedBox(
-                height: 220,
-                child: AnimatedGauge(
-                  redline: redline,
-                  animations: animations,
+                height: 184,
+                child: Row(
+                  children: [
+                    Expanded(child: AnimatedGauge(redline: redline, animations: animations)),
+                    const SizedBox(width: 8),
+                    Expanded(child: AnimatedSpeedGauge(animations: animations)),
+                  ],
                 ),
               ),
+              const SizedBox(height: 14),
+              VehicleTelemetryPanel(english: english),
               const SizedBox(height: 10),
               Text(
                 t(
@@ -924,6 +929,149 @@ class GaugePainter extends CustomPainter {
 }
 
 // CARACAL LOGO
+
+
+class AnimatedSpeedGauge extends StatefulWidget {
+  final bool animations;
+  const AnimatedSpeedGauge({super.key, required this.animations});
+  @override
+  State<AnimatedSpeedGauge> createState() => _AnimatedSpeedGaugeState();
+}
+class _AnimatedSpeedGaugeState extends State<AnimatedSpeedGauge>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _speed;
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 5));
+    _speed = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0, end: 218).chain(CurveTween(curve: Curves.easeOutCubic)), weight: 65),
+      TweenSequenceItem(tween: Tween(begin: 218, end: 0).chain(CurveTween(curve: Curves.easeInOut)), weight: 35),
+    ]).animate(_controller);
+    if (widget.animations) { _controller.repeat(); } else { _controller.value = .42; }
+  }
+  @override
+  void didUpdateWidget(covariant AnimatedSpeedGauge oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.animations && !_controller.isAnimating) { _controller.repeat(); }
+    else if (!widget.animations && _controller.isAnimating) { _controller.stop(); _controller.value = .42; }
+  }
+  @override
+  void dispose() { _controller.dispose(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _speed,
+    builder: (_, __) => CustomPaint(painter: SpeedGaugePainter(value: _speed.value), child: const SizedBox.expand()),
+  );
+}
+class SpeedGaugePainter extends CustomPainter {
+  final double value;
+  SpeedGaugePainter({required this.value});
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+    final center = Offset(size.width / 2, size.height * .77);
+    final radius = math.min(size.width * .40, size.height * .63);
+    const start = math.pi * 1.12;
+    const sweep = math.pi * .76;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    canvas.drawArc(rect.inflate(8), start, sweep, false, Paint()
+      ..color = const Color(0xFF77818C).withOpacity(.6)
+      ..style = PaintingStyle.stroke..strokeWidth = 2.2);
+    canvas.drawArc(rect, start, sweep, false, Paint()
+      ..color = Colors.white.withOpacity(.10)
+      ..style = PaintingStyle.stroke..strokeWidth = 11);
+    canvas.drawArc(rect, start, sweep * (value / 260).clamp(0.0, 1.0), false, Paint()
+      ..color = const Color(0xFF56C8FF).withOpacity(.75)
+      ..style = PaintingStyle.stroke..strokeWidth = 5..strokeCap = StrokeCap.round);
+    for (int i = 0; i <= 26; i++) {
+      final angle = start + sweep * i / 26;
+      final major = i % 5 == 0;
+      final p1 = Offset(center.dx + math.cos(angle) * (radius - (major ? 10 : 4)),
+          center.dy + math.sin(angle) * (radius - (major ? 10 : 4)));
+      final p2 = Offset(center.dx + math.cos(angle) * (radius + (major ? 9 : 5)),
+          center.dy + math.sin(angle) * (radius + (major ? 9 : 5)));
+      canvas.drawLine(p1, p2, Paint()
+        ..color = Colors.white.withOpacity(major ? .9 : .36)
+        ..strokeWidth = major ? 1.8 : 1);
+      if (major) {
+        final tp = TextPainter(
+          text: TextSpan(text: (i * 10).toString(), style: const TextStyle(color: silver, fontSize: 8, fontWeight: FontWeight.w700)),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        final pos = Offset(center.dx + math.cos(angle) * (radius - 25),
+            center.dy + math.sin(angle) * (radius - 25));
+        tp.paint(canvas, pos - Offset(tp.width / 2, tp.height / 2));
+      }
+    }
+    final angle = start + sweep * (value / 260).clamp(0.0, 1.0);
+    final needle = Offset(center.dx + math.cos(angle) * (radius - 19),
+        center.dy + math.sin(angle) * (radius - 19));
+    canvas.drawLine(center, needle, Paint()
+      ..color = const Color(0xFF56C8FF)..strokeWidth = 2.6..strokeCap = StrokeCap.round);
+    canvas.drawCircle(center, 6, Paint()..color = silver);
+    canvas.drawCircle(center, 3, Paint()..color = const Color(0xFF101216));
+    final speed = TextPainter(
+      text: TextSpan(text: value.round().toString(), style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w900)),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    speed.paint(canvas, Offset(center.dx - speed.width / 2, center.dy - 30));
+    final unit = TextPainter(
+      text: const TextSpan(text: 'km/h', style: TextStyle(color: silver, fontSize: 8, fontWeight: FontWeight.bold)),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    unit.paint(canvas, Offset(center.dx - unit.width / 2, center.dy - 9));
+  }
+  @override
+  bool shouldRepaint(covariant SpeedGaugePainter oldDelegate) => oldDelegate.value != value;
+}
+class VehicleTelemetryPanel extends StatelessWidget {
+  final bool english;
+  const VehicleTelemetryPanel({super.key, required this.english});
+  @override
+  Widget build(BuildContext context) {
+    final items = <(String, String, IconData)>[
+      (english ? 'Coolant' : 'دمای آب', '90°C', Icons.thermostat),
+      (english ? 'Oil temp.' : 'دمای روغن', '96°C', Icons.oil_barrel_outlined),
+      (english ? 'Battery' : 'ولتاژ باتری', '14.2V', Icons.battery_charging_full),
+      (english ? 'Boost' : 'فشار بوست', '1.2 bar', Icons.speed),
+      (english ? 'Throttle' : 'دریچه گاز', '24%', Icons.tune),
+      (english ? 'Fuel' : 'سوخت', '68%', Icons.local_gas_station),
+      (english ? 'Engine load' : 'بار موتور', '42%', Icons.analytics),
+      (english ? 'Gear' : 'دنده', 'D', Icons.settings),
+    ];
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Row(children: [
+        Expanded(child: Text(english ? 'VEHICLE DATA' : 'پارامترهای خودرو',
+          style: const TextStyle(color: silver, fontWeight: FontWeight.w900, fontSize: 12))),
+        const Text('DEMO', style: TextStyle(color: red, fontSize: 9, fontWeight: FontWeight.w900)),
+      ]),
+      const SizedBox(height: 8),
+      GridView.count(
+        crossAxisCount: 4, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+        childAspectRatio: 1.05, mainAxisSpacing: 6, crossAxisSpacing: 6,
+        children: items.map((item) => Container(
+          padding: const EdgeInsets.all(7),
+          decoration: BoxDecoration(color: const Color(0xFF0D0F12),
+            borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.white10)),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(item.$3, color: const Color(0xFF56C8FF), size: 16),
+            const SizedBox(height: 5),
+            FittedBox(child: Text(item.$2, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w900))),
+            const SizedBox(height: 3),
+            FittedBox(child: Text(item.$1, style: const TextStyle(color: silver, fontSize: 8))),
+          ]),
+        )).toList(),
+      ),
+      const SizedBox(height: 5),
+      Text(english
+        ? 'Illustrative values only — live readings require a compatible OBD-II adapter.'
+        : 'اعداد نمایشی هستند؛ نمایش زنده به اتصال آداپتور سازگار OBD-II نیاز دارد.',
+        style: const TextStyle(color: Colors.white38, fontSize: 9)),
+    ]);
+  }
+}
 
 class CaracalPainter extends CustomPainter {
   const CaracalPainter();
