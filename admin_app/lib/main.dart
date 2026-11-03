@@ -218,7 +218,7 @@ class _AdminHomeState extends State<AdminHome>{
       if(mediaUrl.isNotEmpty)SelectableText(mediaUrl,style:const TextStyle(fontSize:10,color:silver)),
       Row(children:[
         Expanded(child:OutlinedButton.icon(onPressed:uploading?null:()=>pickMedia(setDialog),icon:uploading?const SizedBox(width:16,height:16,child:CircularProgressIndicator(strokeWidth:2)):const Icon(Icons.upload_file),label:Text(uploading?'در حال بارگذاری…':'انتخاب و بارگذاری فایل'))),
-        if(mediaUrl.isNotEmpty)IconButton(tooltip:'حذف پیوند رسانه',onPressed:()=>setDialog(()=>{mediaUrl='';mediaType='none';}),icon:const Icon(Icons.delete_outline,color:red)),
+        if(mediaUrl.isNotEmpty)IconButton(tooltip:'حذف پیوند رسانه',onPressed:()=>setDialog((){mediaUrl='';mediaType='none';}),icon:const Icon(Icons.delete_outline,color:red)),
       ]),
     ]))),actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('انصراف')),FilledButton(onPressed:busy?null:()async{for(final k in c.keys){l[k]=c[k]!.text.trim();}l['is_published']=published;l['media_url']=mediaUrl;l['media_type']=mediaType;Navigator.pop(ctx);await saveLesson(l);},child:const Text('ذخیره'))])));
     for(final x in c.values){x.dispose();}
