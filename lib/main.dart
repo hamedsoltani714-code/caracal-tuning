@@ -946,8 +946,8 @@ class _AnimatedSpeedGaugeState extends State<AnimatedSpeedGauge>
     super.initState();
     _controller = AnimationController(vsync: this, duration: const Duration(seconds: 5));
     _speed = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 0, end: 218).chain(CurveTween(curve: Curves.easeOutCubic)), weight: 65),
-      TweenSequenceItem(tween: Tween(begin: 218, end: 0).chain(CurveTween(curve: Curves.easeInOut)), weight: 35),
+      TweenSequenceItem(tween: Tween(begin: 0, end: 260).chain(CurveTween(curve: Curves.easeOutCubic)), weight: 65),
+      TweenSequenceItem(tween: Tween(begin: 260, end: 0).chain(CurveTween(curve: Curves.easeInOut)), weight: 35),
     ]).animate(_controller);
     if (widget.animations) { _controller.repeat(); } else { _controller.value = .42; }
   }
