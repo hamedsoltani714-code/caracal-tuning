@@ -390,256 +390,145 @@ class _IntroScreenState extends State<IntroScreen> {
 // HOME
 
 class HomeScreen extends StatelessWidget {
-  final bool english;
-  final bool redline;
-  final bool animations;
+  final bool english, redline, animations;
   final ValueChanged<int> onNavigate;
-
-  const HomeScreen({
-    super.key,
-    required this.english,
-    required this.redline,
-    required this.animations,
-    required this.onNavigate,
-  });
-
+  const HomeScreen({super.key, required this.english, required this.redline, required this.animations, required this.onNavigate});
   String t(String fa, String en) => english ? en : fa;
 
-  @override
-  Widget build(BuildContext context) {
+  @override Widget build(BuildContext context) {
+    final compact = MediaQuery.sizeOf(context).width < 390;
     return ListView(
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.fromLTRB(compact ? 12 : 18, 14, compact ? 12 : 18, 28),
       children: [
-        Row(
-          children: [
-            SizedBox(
-              width: 58,
-              height: 52,
-              child: Image.asset(
-                'assets/130315.png',
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stack) =>
-                    const CustomPaint(painter: CaracalPainter()),
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'CARACAL TUNING',
-                    style: TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                  Text(
-                    'DRIVE • LEARN • UPGRADE',
-                    style: TextStyle(
-                      color: red,
-                      fontSize: 9,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            IconButton(
-              tooltip: t('اعلان‌ها', 'Notifications'),
-              onPressed: () => showDialog<void>(
-                context: context,
-                builder: (_) => NotificationCenterDialog(english: english),
-              ),
-              icon: const Icon(Icons.notifications_none, color: silver),
-            ),
-          ],
-        ),
-        const SizedBox(height: 25),
+        Row(children: [
+          Container(width: 54, height: 50, padding: const EdgeInsets.all(5),
+            decoration: BoxDecoration(color: const Color(0xFF171A1E), borderRadius: BorderRadius.circular(13),
+              border: Border.all(color: const Color(0xFF68717C)),
+              boxShadow: const [BoxShadow(color: Colors.black, blurRadius: 12, offset: Offset(0, 5))]),
+            child: Image.asset('assets/130315.png', fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const Icon(Icons.pets, color: silver, size: 32))),
+          const SizedBox(width: 12),
+          const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('CARACAL TUNING', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 1.25)),
+            Text('DRIVE • LEARN • UPGRADE', style: TextStyle(color: red, fontSize: 9, letterSpacing: 1.6, fontWeight: FontWeight.bold)),
+          ])),
+          IconButton(tooltip: 'Notifications',
+            onPressed: () => showDialog<void>(context: context, builder: (_) => NotificationCenterDialog(english: english)),
+            icon: const Icon(Icons.notifications_none, color: silver, size: 27)),
+        ]),
+        const SizedBox(height: 18),
         Container(
-          padding: const EdgeInsets.all(18),
+          padding: EdgeInsets.fromLTRB(compact ? 10 : 15, 14, compact ? 10 : 15, 14),
           decoration: BoxDecoration(
-            color: panel,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white10),
-          ),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      t('آماده‌ای؟', 'READY TO DRIVE?'),
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  const Icon(Icons.bolt, color: red, size: 27),
-                ],
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                height: 184,
-                child: Row(
-                  children: [
+            borderRadius: BorderRadius.circular(24),
+            gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
+              colors: [Color(0xFF343A42), Color(0xFF101215), Color(0xFF050607)]),
+            border: Border.all(color: const Color(0xFF737D88), width: 1.3),
+            boxShadow: const [BoxShadow(color: Colors.black, blurRadius: 24, offset: Offset(0, 12)),
+              BoxShadow(color: Color(0x337D8996), blurRadius: 8, spreadRadius: 1)]),
+          child: Column(children: [
+            Row(children: [
+              const Icon(Icons.speed, color: Color(0xFFFF4148), size: 18),
+              const SizedBox(width: 7),
+              Expanded(child: Text(t('پنل پشت‌آمپر خودرو', 'DIGITAL COCKPIT'),
+                style: const TextStyle(fontSize: 12, color: silver, fontWeight: FontWeight.w900, letterSpacing: 1.5))),
+              Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white24)),
+                child: Text(t('حالت نمایشی', 'DEMO MODE'), style: const TextStyle(color: Color(0xFFFF6B70), fontSize: 8, fontWeight: FontWeight.w900))),
+            ]),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.fromLTRB(5, 10, 5, 7),
+              decoration: BoxDecoration(color: const Color(0xFF070809), borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFF505963), width: 1.2),
+                boxShadow: const [BoxShadow(color: Colors.black, blurRadius: 14, spreadRadius: 2, offset: Offset(0, 5))]),
+              child: Column(children: [
+                SizedBox(height: compact ? 190 : 218,
+                  child: Row(children: [
                     Expanded(child: AnimatedGauge(redline: redline, animations: animations)),
-                    const SizedBox(width: 8),
+                    Container(width: 1, height: 145, color: Colors.white12),
                     Expanded(child: AnimatedSpeedGauge(animations: animations)),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              VehicleTelemetryPanel(english: english),
-              const SizedBox(height: 10),
-              Text(
-                t(
-                  'قدرت را بشناس؛ دقیق‌تر تنظیم کن',
-                  'Understand power. Tune smarter.',
-                ),
-                style: const TextStyle(color: silver, fontSize: 12),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 25),
-        Text(
-          t('دسترسی سریع', 'QUICK ACCESS'),
-          style: const TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 13),
-        GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 1.45,
-          children: [
-            QuickCard(
-              icon: Icons.school,
-              title: t('آموزش تخصصی', 'Technical Learning'),
-              subtitle: t('دانش فنی خودرو', 'Automotive knowledge'),
-              onTap: () => onNavigate(1),
+                  ])),
+                Padding(padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
+                    _dialCaption(t('دور موتور', 'ENGINE RPM'), 'x1000'),
+                    _dialCaption(t('سرعت', 'VEHICLE SPEED'), 'km/h'),
+                  ])),
+                const SizedBox(height: 9),
+                const Divider(height: 1, color: Colors.white12),
+                const SizedBox(height: 9),
+                VehicleTelemetryPanel(english: english),
+              ]),
             ),
-            QuickCard(
-              icon: Icons.memory,
-              title: t('ریمپ و ECU', 'ECU & Remap'),
-              subtitle: t('مفاهیم و آموزش', 'Concepts & tutorials'),
-              onTap: () => onNavigate(1),
-            ),
-            QuickCard(
-              icon: Icons.car_repair,
-              title: t('گاراژ من', 'My Garage'),
-              subtitle: t('خودروهای من', 'My vehicles'),
-              onTap: () => onNavigate(2),
-            ),
-            QuickCard(
-              icon: Icons.settings,
-              title: t('مرکز کنترل', 'Control Center'),
-              subtitle: t('تنظیمات برنامه', 'App settings'),
-              onTap: () => onNavigate(4),
-            ),
-          ],
+            const SizedBox(height: 10),
+            Row(children: [
+              const Icon(Icons.info_outline, color: Colors.white38, size: 13),
+              const SizedBox(width: 5),
+              Expanded(child: Text(t('اعداد صرفاً نمایشی هستند؛ اطلاعات واقعی به اتصال OBD-II نیاز دارد.',
+                'Illustrative values only. Live vehicle data requires an OBD-II adapter.'),
+                style: const TextStyle(color: Colors.white54, fontSize: 9))),
+            ]),
+          ]),
         ),
-        const SizedBox(height: 25),
-        Text(
-          t('موضوعات منتخب', 'FEATURED TOPICS'),
-          style: const TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        const SizedBox(height: 24),
+        Row(children: [
+          Expanded(child: Text(t('دسترسی سریع', 'QUICK ACCESS'),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: .8))),
+          const Icon(Icons.grid_view_rounded, color: red, size: 18),
+        ]),
         const SizedBox(height: 12),
-        FeatureTile(
-          icon: Icons.speed,
-          title: t('اصول عملکرد موتور', 'Engine Fundamentals'),
-          subtitle: t(
-            'آشنایی با پارامترهای اصلی موتور',
-            'Understanding core engine parameters',
-          ),
-          onTap: () => showLesson(context, english, 'Engine Architecture'),
-        ),
-        FeatureTile(
-          icon: Icons.developer_board,
-          title: t('آشنایی با ECU', 'Getting to Know ECU'),
-          subtitle: t(
-            'ساختار و وظایف واحد کنترل موتور',
-            'Engine control unit architecture',
-          ),
-          onTap: () => showLesson(context, english, 'ECU Fundamentals'),
-        ),
-        FeatureTile(
-          icon: Icons.analytics,
-          title: t('مبانی تحلیل داده', 'Data Analysis Basics'),
-          subtitle: t(
-            'شناخت داده‌ها و پارامترهای خودرو',
-            'Understanding vehicle data',
-          ),
-          onTap: () => showLesson(context, english, 'Parameter Analysis'),
-        ),
+        GridView.count(crossAxisCount: 2, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 10, crossAxisSpacing: 10, childAspectRatio: compact ? 1.48 : 1.58,
+          children: [
+            QuickCard(icon: Icons.school_rounded, title: t('آموزش تخصصی', 'Technical Learning'), subtitle: t('دانش فنی خودرو', 'Automotive knowledge'), onTap: () => onNavigate(1)),
+            QuickCard(icon: Icons.memory_rounded, title: t('ریمپ و ECU', 'ECU & Remap'), subtitle: t('مفاهیم و آموزش', 'Concepts & tutorials'), onTap: () => onNavigate(1)),
+            QuickCard(icon: Icons.car_repair_rounded, title: t('گاراژ من', 'My Garage'), subtitle: t('خودروهای من', 'My vehicles'), onTap: () => onNavigate(2)),
+            QuickCard(icon: Icons.calendar_month_rounded, title: t('نوبت‌دهی', 'Booking'), subtitle: t('مراکز کاراکال', 'Caracal branches'), onTap: () => onNavigate(3)),
+          ]),
+        const SizedBox(height: 23),
+        Text(t('موضوعات منتخب', 'FEATURED TOPICS'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: .8)),
+        const SizedBox(height: 11),
+        FeatureTile(icon: Icons.settings_input_component, title: t('اصول عملکرد موتور', 'Engine Fundamentals'),
+          subtitle: t('آشنایی با پارامترهای اصلی موتور', 'Understanding core engine parameters'),
+          onTap: () => showLesson(context, english, 'Engine Architecture')),
+        FeatureTile(icon: Icons.memory, title: t('آشنایی با ECU', 'Getting to Know ECU'),
+          subtitle: t('ساختار و وظایف واحد کنترل موتور', 'Engine control unit architecture'),
+          onTap: () => showLesson(context, english, 'ECU Fundamentals')),
+        FeatureTile(icon: Icons.query_stats, title: t('مبانی تحلیل داده', 'Data Analysis Basics'),
+          subtitle: t('شناخت داده‌ها و پارامترهای خودرو', 'Understanding vehicle data'),
+          onTap: () => showLesson(context, english, 'Parameter Analysis')),
       ],
     );
   }
+
+  Widget _dialCaption(String title, String unit) => Column(children: [
+    Text(title, style: const TextStyle(color: silver, fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 1.1)),
+    const SizedBox(height: 2),
+    Text(unit, style: const TextStyle(color: Colors.white38, fontSize: 8, letterSpacing: 1)),
+  ]);
 }
 
 class QuickCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  const QuickCard({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: panel,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white10),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: red, size: 27),
-            const SizedBox(height: 10),
-            Text(
-              title,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: const TextStyle(
-                color: Colors.white54,
-                fontSize: 10,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  final IconData icon; final String title, subtitle; final VoidCallback onTap;
+  const QuickCard({super.key, required this.icon, required this.title, required this.subtitle, required this.onTap});
+  @override Widget build(BuildContext context) => InkWell(
+    onTap: onTap, borderRadius: BorderRadius.circular(17),
+    child: Container(padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(17),
+        gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
+          colors: [Color(0xFF30353B), Color(0xFF14171B), Color(0xFF08090B)]),
+        border: Border.all(color: const Color(0xFF626B75), width: 1),
+        boxShadow: const [BoxShadow(color: Colors.black, blurRadius: 10, offset: Offset(0, 5))]),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
+        Icon(icon, color: silver, size: 27), const SizedBox(height: 10),
+        Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: Colors.white)),
+        const SizedBox(height: 4),
+        Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: Colors.white54, fontSize: 9)),
+      ]),
+    ),
+  );
 }
 
 class FeatureTile extends StatelessWidget {
