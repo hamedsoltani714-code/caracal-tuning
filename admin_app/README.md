@@ -20,3 +20,9 @@
 - جدول‌های profiles، booking_requests و lessons باید RLS صحیح داشته باشند.
 - کنترل‌های رابط کاربری جایگزین RLS نیستند؛ مجوزهای دیتابیس باید نقش و permissions را اعتبارسنجی کنند.
 - Edge Function create-admin باید JWT را بررسی کند و مالک را سمت سرور اعتبارسنجی کند.
+
+
+## Release verification
+- Launcher icon asset: `assets/130315.png` (copied from the repository root by the GitHub Actions workflow).
+- The release workflow builds the standalone universal Android APK and uploads it as `CARACAL-ADMIN-APK`.
+- `flutter_launcher_icons` is declared as a development dependency so icon generation is reproducible in CI.
