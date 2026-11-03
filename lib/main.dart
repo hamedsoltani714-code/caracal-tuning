@@ -1415,7 +1415,11 @@ class _GarageScreenState extends State<GarageScreen> {
     }
     try {
       if (signUp) {
-        final response = await client.auth.signUp(email: email, password: password);
+        final response = await client.auth.signUp(
+          email: email,
+          password: password,
+          emailRedirectTo: 'com.example.caracal_tuning://login-callback/',
+        );
         if (response.session == null) {
           if (mounted) setState(() => error = t('حساب ساخته شد؛ ایمیل خود را برای تأیید بررسی کن.', 'Account created. Check your email to confirm it.'));
           return;
