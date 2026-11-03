@@ -58,6 +58,27 @@ jobs:
           manifest.write_text(source)
           print("Android internet and network-state permissions are present.")
           PY
+      - name: Configure CARACAL email confirmation deep link
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          source = manifest.read_text()
+          intent_filter = """
+                  <intent-filter>
+                      <action android:name="android.intent.action.VIEW" />
+                      <category android:name="android.intent.category.DEFAULT" />
+                      <category android:name="android.intent.category.BROWSABLE" />
+                      <data android:scheme="com.example.caracal_tuning" android:host="login-callback" />
+                  </intent-filter>
+          """
+          if "com.example.caracal_tuning" not in source:
+              source = source.replace("</activity>", intent_filter + "\n        </activity>", 1)
+          manifest.write_text(source)
+          print("CARACAL email confirmation deep link configured.")
+          PY
+
       - name: Configure Android SDK
         run: |
           if [ -f android/app/build.gradle.kts ]; then
