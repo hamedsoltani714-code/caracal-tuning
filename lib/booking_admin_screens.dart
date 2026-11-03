@@ -32,7 +32,6 @@ class _BookingScreenState extends State<BookingScreen> {
   String _service = 'ریمپ و کالیبراسیون';
 
   bool _busy = false;
-  bool _admin = false;
   bool _loading = false;
 
   String? _message;
@@ -93,66 +92,27 @@ class _BookingScreenState extends State<BookingScreen> {
 
   Future<void> _loadRequests() async {
     final client = _client;
-
-    if (client == null || !_signedIn) {
-      if (mounted) {
-        setState(() {
-          _requests = [];
-          _admin = false;
-        });
-      }
+    final user = client?.auth.currentUser;
+    if (client == null || user == null) {
+      if (mounted) setState(() => _requests = []);
       return;
     }
-
     if (_loading) return;
-
     setState(() => _loading = true);
-
     try {
-      final user = client.auth.currentUser;
-      if (user == null) return;
-
-      final profile = await client
-          .from('profiles')
-          .select('role, permissions')
-          .eq('id', user.id)
-          .maybeSingle();
-
-      final role = profile?['role']?.toString();
-
-      final permissions = Map<String, dynamic>.from(
-        profile?['permissions'] as Map? ?? {},
-      );
-
-      final isAdmin = role == 'owner' ||
-          (role == 'admin' && permissions['manage_bookings'] == true);
-
-      final rows = isAdmin
-          ? await client
-              .from('booking_requests')
-              .select()
-              .order('created_at', ascending: false)
-              .limit(100)
-          : await client
-              .from('booking_requests')
-              .select()
-              .eq('user_id', user.id)
-              .order('created_at', ascending: false);
-
+      // The mobile app is strictly a customer app. Admin-wide booking
+      // access and status changes live in the separate web dashboard.
+      final rows = await client
+          .from('booking_requests')
+          .select()
+          .eq('user_id', user.id)
+          .order('created_at', ascending: false);
       if (!mounted) return;
-
-      setState(() {
-        _admin = isAdmin;
-        _requests = List<Map<String, dynamic>>.from(rows);
-      });
+      setState(() => _requests = List<Map<String, dynamic>>.from(rows));
     } catch (e) {
-      _showMessage(
-        '${t('خطا در دریافت درخواست‌ها: ', 'Could not load requests: ')}$e',
-      );
+      _showMessage('${t('خطا در دریافت درخواست‌ها: ', 'Could not load requests: ')}$e');
     } finally {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -247,40 +207,6 @@ class _BookingScreenState extends State<BookingScreen> {
       if (mounted) {
         setState(() => _busy = false);
       }
-    }
-  }
-
-  Future<void> _changeStatus(
-    Map<String, dynamic> row,
-    String status,
-  ) async {
-    final client = _client;
-
-    if (client == null || !_signedIn || !_admin) {
-      _showMessage(
-        t(
-          'دسترسی مدیریت نوبت‌ها وجود ندارد.',
-          'You do not have permission to manage bookings.',
-        ),
-      );
-      return;
-    }
-
-    try {
-      await client
-          .from('booking_requests')
-          .update({'status': status})
-          .eq('id', row['id']);
-
-      _showMessage(
-        t('وضعیت درخواست به‌روزرسانی شد.', 'Request status updated.'),
-      );
-
-      await _loadRequests();
-    } catch (e) {
-      _showMessage(
-        '${t('خطا در تغییر وضعیت: ', 'Could not update status: ')}$e',
-      );
     }
   }
 
@@ -589,9 +515,7 @@ class _BookingScreenState extends State<BookingScreen> {
             children: [
               Expanded(
                 child: Text(
-                  _admin
-                      ? t('مدیریت درخواست‌های نوبت', 'BOOKING MANAGEMENT')
-                      : t('درخواست‌های من', 'MY BOOKINGS'),
+                  t('درخواست‌های من', 'MY BOOKINGS'),
                   style: const TextStyle(
                     fontWeight: FontWeight.w900,
                     fontSize: 15,
@@ -735,27 +659,6 @@ class _BookingScreenState extends State<BookingScreen> {
                 ),
               ),
             ),
-          if (_admin) ...[
-            const Divider(height: 22, color: Colors.white12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: [
-                TextButton(
-                  onPressed: () => _changeStatus(row, 'confirmed'),
-                  child: Text(t('تأیید', 'Confirm')),
-                ),
-                TextButton(
-                  onPressed: () => _changeStatus(row, 'completed'),
-                  child: Text(t('انجام شد', 'Complete')),
-                ),
-                TextButton(
-                  onPressed: () => _changeStatus(row, 'cancelled'),
-                  child: Text(t('لغو', 'Cancel')),
-                ),
-              ],
-            ),
-          ],
         ],
       ),
     );
