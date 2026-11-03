@@ -118,7 +118,7 @@ class _AdminHomeState extends State<AdminHome>{
   Future<void> invite(String mail,Map<String,bool> p) async {
     if(!owner) throw Exception('فقط مالک اصلی اجازه افزودن مدیر دارد.');
     final normalized=mail.trim().toLowerCase();
-    if(!RegExp(r'^[^\\s@]+@[^\\s@]+\\.[^\\s@]+
+    if(!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+
   Future<void> savePermissions(String id,Map<String,dynamic> p)=>act(()async{
     if(!owner)throw Exception('فقط مالک اجازه تغییر دسترسی دارد.');
     await db.from('profiles').update({'permissions':p}).eq('id',id).eq('role','admin');
