@@ -76,10 +76,15 @@ jobs:
         continue-on-error: true
 
       - name: Build Release APK
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://fabbzaviesndfobxhrxf.supabase.co' }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZhYmJ6YXZpZXNuZGZvYnhocnhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1MzEyNjcsImV4cCI6MjEwOTEwNzI2N30.mwJfaLmV0dKso2dsXxX3gr2naFYqFEFtGi6Nw731RNk' }}
         run: |
+          test -n "$SUPABASE_URL"
+          test -n "$SUPABASE_ANON_KEY"
           flutter build apk --release \
-            --dart-define=SUPABASE_URL="${{ secrets.SUPABASE_URL }}" \
-            --dart-define=SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
