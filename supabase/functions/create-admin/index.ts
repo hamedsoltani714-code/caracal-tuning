@@ -98,6 +98,8 @@ Deno.serve(async (req) => {
       publish_content: requested.publish_content === true,
       manage_users: requested.manage_users === true,
       manage_bookings: requested.manage_bookings === true,
+      manage_memberships: requested.manage_memberships === true,
+      manage_notifications: requested.manage_notifications === true,
     };
 
     let targetUser = null;
