@@ -19,6 +19,12 @@ create policy vehicles_update_own on public.vehicles for update to authenticated
 create policy vehicles_delete_own on public.vehicles for delete to authenticated using (user_id=auth.uid());
 grant select,insert,update,delete on public.vehicles to authenticated;
 
+alter table public.lessons add column if not exists title_fa text;
+alter table public.lessons add column if not exists title_en text;
+alter table public.lessons add column if not exists summary_fa text;
+alter table public.lessons add column if not exists summary_en text;
+alter table public.lessons add column if not exists body_fa text;
+alter table public.lessons add column if not exists body_en text;
 alter table public.lessons add column if not exists title text;
 alter table public.lessons add column if not exists summary text;
 alter table public.lessons add column if not exists body text;
