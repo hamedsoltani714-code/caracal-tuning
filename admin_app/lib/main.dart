@@ -115,21 +115,23 @@ class _AdminHomeState extends State<AdminHome>{
     final data=<String,dynamic>{for(final k in ['title','title_fa','title_en','summary','summary_fa','summary_en','body','body_fa','body_en','category','is_published','media_url','media_type'])if(l.containsKey(k))k:l[k]};
     if(l['id']==null){data['created_by']=db.auth.currentUser!.id; if(!canPublish)data['is_published']=false; await db.from('lessons').insert(data);}else{if(!canPublish)data['is_published']=false; await db.from('lessons').update(data).eq('id',l['id']);}
   });
-  Future<void> invite(String mail,Map<String,bool> p) async {
-    if(!owner) throw Exception('فقط مالک اصلی اجازه افزودن مدیر دارد.');
-    final normalized=mail.trim().toLowerCase();
-    if(!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+ {
+  Future<void> invite(String mail, Map<String, bool> p) async {
+    if (!owner) throw Exception('فقط مالک اصلی اجازه افزودن مدیر دارد.');
+    final normalized = mail.trim().toLowerCase();
+    if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(normalized)) {
       throw Exception('ایمیل مدیر معتبر نیست.');
     }
-    if(normalized==ownerEmail) throw Exception('ایمیل مالک اصلی را نمی‌توان به‌عنوان مدیر ثبت کرد.');
-    final response=await db.functions.invoke(
+    if (normalized == ownerEmail) {
+      throw Exception('ایمیل مالک اصلی را نمی‌توان به‌عنوان مدیر ثبت کرد.');
+    }
+    final response = await db.functions.invoke(
       'create-admin',
-      body:{'email':normalized,'permissions':p},
+      body: {'email': normalized, 'permissions': p},
     );
-    final data=response.data;
-    if(response.status<200 || response.status>=300 ||
-       (data is Map && data['success']==false)) {
-      final message=data is Map ? (data['error']??'ثبت مدیر انجام نشد.') : 'ثبت مدیر انجام نشد.';
+    final data = response.data;
+    if (response.status < 200 || response.status >= 300 ||
+        (data is Map && data['success'] == false)) {
+      final message = data is Map ? (data['error'] ?? 'ثبت مدیر انجام نشد.') : 'ثبت مدیر انجام نشد.';
       throw Exception(message.toString());
     }
     await refresh();
