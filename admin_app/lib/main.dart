@@ -118,7 +118,22 @@ class _AdminHomeState extends State<AdminHome>{
   Future<void> invite(String mail,Map<String,bool> p) async {
     if(!owner) throw Exception('فقط مالک اصلی اجازه افزودن مدیر دارد.');
     final normalized=mail.trim().toLowerCase();
-    if(!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+
+    if(!RegExp(r'^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$').hasMatch(normalized)) {
+      throw Exception('ایمیل مدیر معتبر نیست.');
+    }
+    if(normalized==ownerEmail) throw Exception('ایمیل مالک اصلی را نمی‌توان به‌عنوان مدیر ثبت کرد.');
+    final response=await db.functions.invoke(
+      'create-admin',
+      body:{'email':normalized,'permissions':p},
+    );
+    final data=response.data;
+    if(response.status<200 || response.status>=300 ||
+       (data is Map && data['success']==false)) {
+      final message=data is Map ? (data['error']??'ثبت مدیر انجام نشد.') : 'ثبت مدیر انجام نشد.';
+      throw Exception(message.toString());
+    }
+    await refresh();
+  }
   Future<void> savePermissions(String id,Map<String,dynamic> p)=>act(()async{
     if(!owner)throw Exception('فقط مالک اجازه تغییر دسترسی دارد.');
     await db.from('profiles').update({'permissions':p}).eq('id',id).eq('role','admin');
