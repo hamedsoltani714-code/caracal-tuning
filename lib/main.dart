@@ -10,10 +10,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:video_player/video_player.dart';
 import 'booking_admin_screens.dart';
 
-const String supabaseUrl =
+final String supabaseUrl =
     String.fromEnvironment('SUPABASE_URL').trim().replaceAll(RegExp(r'/+$'), '');
 
-const String supabaseAnonKey =
+final String supabaseAnonKey =
     String.fromEnvironment('SUPABASE_ANON_KEY').trim();
 
 bool supabaseConfigured = false;
