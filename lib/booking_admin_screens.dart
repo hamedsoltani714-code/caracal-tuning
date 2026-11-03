@@ -30,6 +30,9 @@ class _BookingScreenState extends State<BookingScreen> {
   DateTime _date = DateTime.now().add(const Duration(days: 1));
   String _time = '10:00';
   String _service = 'ریمپ و کالیبراسیون';
+  String? _selectedBranchId;
+  List<Map<String,dynamic>> _branches = [];
+
 
   bool _busy = false;
   bool _loading = false;
@@ -69,7 +72,8 @@ class _BookingScreenState extends State<BookingScreen> {
     final client = _client;
     if (client != null) {
       _authSubscription = client.auth.onAuthStateChange.listen((_) {
-        _loadRequests();
+        _loadBranches();
+    _loadRequests();
       });
     }
     _loadRequests();
@@ -88,6 +92,28 @@ class _BookingScreenState extends State<BookingScreen> {
   void _showMessage(String message) {
     if (!mounted) return;
     setState(() => _message = message);
+  }
+
+  Future<void> _loadBranches() async {
+    final client = _client;
+    if (client == null) return;
+    try {
+      final rows = await client.from('caracal_branches')
+          .select('id,name,city,address,phone')
+          .eq('is_active', true)
+          .order('city')
+          .order('name');
+      if (!mounted) return;
+      final loaded = List<Map<String,dynamic>>.from(rows);
+      setState(() {
+        _branches = loaded;
+        if (_selectedBranchId == null && loaded.isNotEmpty) {
+          _selectedBranchId = loaded.first['id'].toString();
+        }
+      });
+    } catch (e) {
+      _showMessage('${t('بارگذاری شعبه‌ها ناموفق بود: ', 'Could not load branches: ')}$e');
+    }
   }
 
   Future<void> _loadRequests() async {
@@ -174,7 +200,17 @@ class _BookingScreenState extends State<BookingScreen> {
           '${_date.month.toString().padLeft(2, '0')}-'
           '${_date.day.toString().padLeft(2, '0')}';
 
+      final branch = _branches.firstWhere(
+        (b) => b['id'].toString() == _selectedBranchId,
+        orElse: () => <String,dynamic>{},
+      );
+      if (branch.isEmpty) {
+        throw Exception(t('ابتدا یک شعبه معتبر انتخاب کن.', 'Select a valid branch first.'));
+      }
+
       await client.from('booking_requests').insert({
+        'branch_name': branch['name'],
+        'branch_address': branch['address'],
         'user_id': user.id,
         'customer_name': _name.text.trim(),
         'phone': _phone.text.trim(),
@@ -367,6 +403,47 @@ class _BookingScreenState extends State<BookingScreen> {
                   icon: Icons.directions_car_outlined,
                 ),
                 const SizedBox(height: 4),
+                DropdownButtonFormField<String>(
+                  value: _selectedBranchId,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    labelText: t('شعبه موردنظر', 'Preferred branch'),
+                    prefixIcon: const Icon(Icons.location_on_outlined, color: _bookingSilver),
+                    border: const OutlineInputBorder(),
+                  ),
+                  items: _branches.map((branch) => DropdownMenuItem<String>(
+                    value: branch['id'].toString(),
+                    child: Text('${branch['city']} • ${branch['name']}'),
+                  )).toList(),
+                  onChanged: (value) => setState(() => _selectedBranchId = value),
+                ),
+                if (_selectedBranchId != null) ...[
+                  const SizedBox(height: 8),
+                  Builder(builder: (context) {
+                    final branch = _branches.firstWhere(
+                      (b) => b['id'].toString() == _selectedBranchId,
+                      orElse: () => <String,dynamic>{},
+                    );
+                    if (branch.isEmpty) return const SizedBox.shrink();
+                    return Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.black26,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(branch['address']?.toString() ?? '', style: const TextStyle(color: _bookingSilver, fontSize: 12)),
+                          if ((branch['phone'] ?? '').toString().isNotEmpty)
+                            Text('${t('تماس: ', 'Phone: ')}${branch['phone']}', style: const TextStyle(color: Colors.white60, fontSize: 11)),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+                const SizedBox(height: 14),
                 DropdownButtonFormField<String>(
                   value: _service,
                   isExpanded: true,
