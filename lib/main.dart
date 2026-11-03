@@ -13,8 +13,11 @@ import 'booking_admin_screens.dart';
 const String supabaseUrl =
     String.fromEnvironment('SUPABASE_URL').trim();
 
-const String supabaseAnonKey =
-    String.fromEnvironment('SUPABASE_ANON_KEY').trim();
+final String supabaseUrl =
+    const String.fromEnvironment('SUPABASE_URL').trim();
+
+final String supabaseAnonKey =
+    const String.fromEnvironment('SUPABASE_ANON_KEY').trim();
 
 bool supabaseConfigured = false;
 
