@@ -15,8 +15,6 @@ dependencies:
 
   cupertino_icons: ^1.0.8
   supabase_flutter: ^2.8.4
-  audioplayers: ^6.1.0
-  file_picker: ^8.1.7
   url_launcher: ^6.3.1
   shared_preferences: ^2.3.5
   video_player: ^2.10.0
@@ -35,8 +33,6 @@ flutter:
   assets:
     - assets/130315.png
     - assets/Intro.mp4
-    - Caracal (1).mp3
-    - Pagani-Zonda (2).mp3
 
 flutter_launcher_icons:
   android: true
