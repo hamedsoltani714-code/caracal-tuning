@@ -1523,7 +1523,7 @@ class _GarageScreenState extends State<GarageScreen> {
   Future<void> signOut() async {
     await runBusy(() async {
       await client.auth.signOut();
-      if (mounted) setState(() { profile = null; vehicles = []; });
+      if (mounted) setState(() { profile = null; vehicles = []; memberships = []; });
     });
   }
 
@@ -1598,6 +1598,18 @@ class _GarageScreenState extends State<GarageScreen> {
         TextField(controller: vehicleController, decoration: InputDecoration(labelText: t('نام خودرو (مثلاً پژو ۲۰۶)', 'Vehicle name (e.g. Peugeot 206)'), border: const OutlineInputBorder(), suffixIcon: IconButton(onPressed: busy ? null : addVehicle, icon: const Icon(Icons.add, color: red)))),
         const SizedBox(height: 8),
         if (vehicles.isEmpty) Text(t('هنوز خودرویی ثبت نکرده‌ای.', 'No vehicles added yet.'), style: const TextStyle(color: Colors.white54)) else ...vehicles.map((v) => ListTile(leading: const Icon(Icons.directions_car, color: silver), title: Text(v['name']?.toString() ?? ''), trailing: IconButton(icon: const Icon(Icons.delete_outline, color: Colors.redAccent), onPressed: () => runBusy(() async { await client.from('vehicles').delete().eq('id', v['id']); await loadAccount(); })))),
+      ])),
+      const SizedBox(height: 18),
+      Text(t('عضویت و اشتراک من', 'MY MEMBERSHIP'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+      const SizedBox(height: 10),
+      _card(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        if (memberships.isEmpty) Text(t('هنوز اشتراکی برای حساب شما ثبت نشده است.', 'No membership is registered for your account.'), style: const TextStyle(color: Colors.white54))
+        else ...memberships.map((m) => ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.workspace_premium_outlined, color: red),
+          title: Text(m['plan']?.toString() ?? 'standard'),
+          subtitle: Text('${t('وضعیت: ', 'Status: ')}${m['status'] ?? 'pending'}'),
+        )),
       ])),
     ]);
   }
