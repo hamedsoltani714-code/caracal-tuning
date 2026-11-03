@@ -48,7 +48,7 @@ jobs:
               if permission not in source:
                   source = source.replace(
                       "<application",
-                      f"    {tag}\\n    <application",
+                      f"    {tag}\n    <application",
                       1,
                   )
           manifest.write_text(source)
