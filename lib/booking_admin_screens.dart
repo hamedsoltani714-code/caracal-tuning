@@ -73,8 +73,10 @@ class _BookingScreenState extends State<BookingScreen> {
     if (client != null) {
       _authSubscription = client.auth.onAuthStateChange.listen((_) {
         _loadBranches();
-    _loadRequests();
+        _loadRequests();
       });
+      // Load active branches immediately; previously this only ran after auth changes.
+      _loadBranches();
     }
     _loadRequests();
   }
