@@ -34,6 +34,24 @@ jobs:
           fi
       - name: Set app display name
         run: sed -i 's/android:label="caracal_admin"/android:label="CARACAL ADMIN"/' android/app/src/main/AndroidManifest.xml
+      - name: Configure file_picker
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path.home() / ".pub-cache" / "hosted" / "pub.dev"
+          files = list(root.glob("file_picker-*/android/**/*.gradle"))
+          files += list(root.glob("file_picker-*/android/**/*.gradle.kts"))
+          for path in files:
+              source = path.read_text()
+              updated = re.sub(
+                  r"(?m)^(\\s*compileSdk(?:Version)?\\s*(?:=\\s*)?)(\\d+|flutter\\.compileSdkVersion)\\b",
+                  r"\\g<1>36",
+                  source
+              )
+              path.write_text(updated)
+          PY
       - name: Install dependencies
         run: flutter pub get
       - name: Analyze
