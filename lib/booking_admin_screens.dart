@@ -298,7 +298,9 @@ class _BookingScreenState extends State<BookingScreen> {
         context: context,
         initialDate: Jalali.fromDateTime(_date),
         firstDate: Jalali.now(),
-        lastDate: Jalali.now().add(const Duration(days: 180)),
+        lastDate: Jalali.fromDateTime(
+  DateTime.now().add(const Duration(days: 180)),
+),
         helpText: 'انتخاب تاریخ نوبت',
         cancelText: 'لغو',
         confirmText: 'تأیید',
