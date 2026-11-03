@@ -36,6 +36,28 @@ jobs:
             flutter create --project-name caracal_tuning --platforms=android .
           fi
 
+      - name: Ensure Android network permissions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          source = manifest.read_text()
+          permissions = [
+              "android.permission.INTERNET",
+              "android.permission.ACCESS_NETWORK_STATE",
+          ]
+          for permission in permissions:
+              tag = f'<uses-permission android:name="{permission}"/>'
+              if permission not in source:
+                  source = source.replace(
+                      "<application",
+                      f"    {tag}\\n    <application",
+                      1,
+                  )
+          manifest.write_text(source)
+          print("Android internet and network-state permissions are present.")
+          PY
       - name: Configure Android SDK
         run: |
           if [ -f android/app/build.gradle.kts ]; then
