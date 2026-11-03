@@ -1370,6 +1370,7 @@ class _GarageScreenState extends State<GarageScreen> {
   bool signUp = false;
   String? error;
   List<Map<String, dynamic>> vehicles = [];
+  List<Map<String, dynamic>> memberships = [];
   Map<String, dynamic>? profile;
 
   bool get en => widget.english;
