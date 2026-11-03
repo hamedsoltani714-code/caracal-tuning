@@ -1,7 +1,7 @@
 name: caracal_tuning
-description: CARACAL TUNING - Drive, Learn, Upgrade
+description: CARACAL TUNING - DRIVE • LEARN • UPGRADE
 publish_to: "none"
-version: 1.1.0+4
+version: 1.2.0+5
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -9,8 +9,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
   flutter_localizations:
     sdk: flutter
+
   cupertino_icons: ^1.0.8
   supabase_flutter: ^2.8.4
   audioplayers: ^6.1.0
@@ -23,11 +25,13 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
   flutter_lints: ^5.0.0
   flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
+
   assets:
     - assets/130315.png
     - assets/Intro.mp4
@@ -37,5 +41,5 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: false
-  image_path: "assets/images/130315.png"
+  image_path: "assets/130315.png"
   remove_alpha_ios: true
