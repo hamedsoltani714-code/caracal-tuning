@@ -46,8 +46,8 @@ jobs:
           for path in files:
               source = path.read_text()
               updated = re.sub(
-                  r"(?m)^(\\s*compileSdk(?:Version)?\\s*(?:=\\s*)?)(\\d+|flutter\\.compileSdkVersion)\\b",
-                  r"\\g<1>36",
+                  r"(?m)^(\s*compileSdk(?:Version)?\s*(?:=\s*)?)(\\d+|flutter\.compileSdkVersion)\\b",
+                  r"\g<1>36",
                   source
               )
               path.write_text(updated)
