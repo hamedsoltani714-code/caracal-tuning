@@ -809,215 +809,132 @@ class GaugePainter extends CustomPainter {
   final double value;
   final bool redline;
 
-  GaugePainter({
-    required this.value,
-    required this.redline,
-  });
+  GaugePainter({required this.value, required this.redline});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height * .78);
-    final radius = math.min(size.width * .43, size.height * .72);
+    if (size.isEmpty) return;
+    final center = Offset(size.width / 2, size.height * .76);
+    final radius = math.min(size.width * .405, size.height * .66);
     const start = math.pi * 1.12;
     const sweep = math.pi * .76;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    final progress = (value / 9000).clamp(0.0, 1.0);
+    final hot = redline && value >= 6500;
 
-    final rect = Rect.fromCircle(
-      center: center,
-      radius: radius,
-    );
+    // Dark instrument-panel halo and layered metallic bezels.
+    final halo = Paint()
+      ..shader = RadialGradient(
+        colors: [red.withOpacity(hot ? .16 : .055), Colors.transparent],
+      ).createShader(Rect.fromCircle(center: center, radius: radius * 1.55));
+    canvas.drawCircle(center, radius * 1.55, halo);
 
-    canvas.drawArc(
-      rect,
-      start,
-      sweep,
-      false,
-      Paint()
-        ..color = Colors.white12
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 14
-        ..strokeCap = StrokeCap.round,
-    );
+    canvas.drawArc(rect.inflate(15), start, sweep, false,
+      Paint()..color = Colors.white.withOpacity(.055)
+        ..style = PaintingStyle.stroke..strokeWidth = 1.4);
+    canvas.drawArc(rect.inflate(8), start, sweep, false,
+      Paint()..color = const Color(0xFF68717C).withOpacity(.55)
+        ..style = PaintingStyle.stroke..strokeWidth = 2.2);
 
-    canvas.drawArc(
-      rect,
-      start,
-      sweep * (value / 8000).clamp(0.0, 1.0),
-      false,
-      Paint()
-        ..shader = const SweepGradient(
-          colors: [
-            silver,
-            Colors.white,
-            red,
-          ],
-          stops: [0, .72, 1],
+    // Outer illuminated sweep.
+    canvas.drawArc(rect, start, sweep, false,
+      Paint()..color = Colors.white.withOpacity(.09)
+        ..style = PaintingStyle.stroke..strokeWidth = 17
+        ..strokeCap = StrokeCap.round);
+    if (progress > .01) {
+      canvas.drawArc(rect, start, sweep * progress, false,
+        Paint()..color = red.withOpacity(.23)
+          ..style = PaintingStyle.stroke..strokeWidth = 27
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12)
+          ..strokeCap = StrokeCap.round);
+      canvas.drawArc(rect, start, sweep * progress, false,
+        Paint()..shader = const SweepGradient(
+          colors: [Color(0xFF69727D), Colors.white, Color(0xFFFF3038)],
+          stops: [0, .58, 1],
         ).createShader(rect)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 14
-        ..strokeCap = StrokeCap.round,
-    );
-
-    if (redline && value > 6500) {
-      canvas.drawArc(
-        rect,
-        start + sweep * .78,
-        sweep * .22,
-        false,
-        Paint()
-          ..color = red.withOpacity(.45)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 24
-          ..maskFilter = const MaskFilter.blur(
-            BlurStyle.normal,
-            13,
-          ),
-      );
+          ..style = PaintingStyle.stroke..strokeWidth = 12
+          ..strokeCap = StrokeCap.round);
     }
 
-    for (int i = 0; i <= 40; i++) {
-      final angle = start + sweep * i / 40;
-
-      final outer = Offset(
-        center.dx + math.cos(angle) * (radius + 12),
-        center.dy + math.sin(angle) * (radius + 12),
-      );
-
-      final inner = Offset(
-        center.dx +
-            math.cos(angle) *
-                (radius - (i % 5 == 0 ? 13 : 6)),
-        center.dy +
-            math.sin(angle) *
-                (radius - (i % 5 == 0 ? 13 : 6)),
-      );
-
-      canvas.drawLine(
-        inner,
-        outer,
-        Paint()
-          ..color = i >= 34 && redline
-              ? red
-              : silver.withOpacity(.75)
-          ..strokeWidth = i % 5 == 0 ? 2.5 : 1.3,
-      );
+    // Fine ticks and major engraved marks.
+    for (int i = 0; i <= 54; i++) {
+      final angle = start + sweep * i / 54;
+      final major = i % 6 == 0;
+      final outerR = radius + (major ? 13 : 9);
+      final innerR = radius - (major ? 12 : 4);
+      final p1 = Offset(center.dx + math.cos(angle) * innerR,
+          center.dy + math.sin(angle) * innerR);
+      final p2 = Offset(center.dx + math.cos(angle) * outerR,
+          center.dy + math.sin(angle) * outerR);
+      final isHot = i >= 39 && redline;
+      canvas.drawLine(p1, p2, Paint()
+        ..color = isHot ? red.withOpacity(major ? 1 : .65) : silver.withOpacity(major ? .95 : .4)
+        ..strokeWidth = major ? 2.4 : 1
+        ..strokeCap = StrokeCap.round);
     }
 
-    for (int i = 0; i <= 8; i++) {
-      final angle = start + sweep * i / 8;
-
-      final pos = Offset(
-        center.dx + math.cos(angle) * (radius - 30),
-        center.dy + math.sin(angle) * (radius - 30),
-      );
-
+    for (int i = 0; i <= 9; i++) {
+      final angle = start + sweep * i / 9;
+      final pos = Offset(center.dx + math.cos(angle) * (radius - 31),
+          center.dy + math.sin(angle) * (radius - 31));
       final tp = TextPainter(
-        text: TextSpan(
-          text: '$i',
-          style: TextStyle(
-            color: i >= 7 && redline ? red : silver,
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-
-      tp.paint(
-        canvas,
-        pos - Offset(tp.width / 2, tp.height / 2),
-      );
+        text: TextSpan(text: '$i', style: TextStyle(
+          color: i >= 7 && redline ? red : const Color(0xFFE0E4E8),
+          fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: .4)),
+        textDirection: TextDirection.ltr)..layout();
+      tp.paint(canvas, pos - Offset(tp.width / 2, tp.height / 2));
     }
 
-    final needleAngle =
-        start + sweep * (value / 8000).clamp(0.0, 1.0);
-
-    final needleEnd = Offset(
-      center.dx + math.cos(needleAngle) * (radius - 22),
-      center.dy + math.sin(needleAngle) * (radius - 22),
-    );
-
-    if (redline && value > 6000) {
-      canvas.drawLine(
-        center,
-        needleEnd,
-        Paint()
-          ..color = red.withOpacity(.45)
-          ..strokeWidth = 22
-          ..strokeCap = StrokeCap.round
-          ..maskFilter = const MaskFilter.blur(
-            BlurStyle.normal,
-            15,
-          ),
-      );
-    }
-
-    canvas.drawLine(
-      center,
-      needleEnd,
-      Paint()
-        ..color = red
-        ..strokeWidth = 4
-        ..strokeCap = StrokeCap.round,
-    );
-
-    canvas.drawCircle(
-      center,
-      11,
-      Paint()..color = const Color(0xFF555B63),
-    );
-
-    canvas.drawCircle(
-      center,
-      5,
-      Paint()..color = red,
-    );
-
-    final valueText = TextPainter(
-      text: TextSpan(
-        text: (value / 1000).toStringAsFixed(1),
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 29,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-
-    valueText.paint(
-      canvas,
-      Offset(
-        center.dx - valueText.width / 2,
-        center.dy - 48,
-      ),
-    );
-
+    // Center dial face.
+    canvas.drawCircle(center, 40, Paint()..color = const Color(0xFF0C0E11));
+    canvas.drawCircle(center, 40, Paint()
+      ..color = Colors.white.withOpacity(.14)
+      ..style = PaintingStyle.stroke..strokeWidth = 1);
+    final rpmText = TextPainter(
+      text: TextSpan(text: (value / 1000).toStringAsFixed(1),
+        style: const TextStyle(color: Colors.white, fontSize: 28,
+          fontWeight: FontWeight.w900, letterSpacing: -.8)),
+      textDirection: TextDirection.ltr)..layout();
+    rpmText.paint(canvas, Offset(center.dx - rpmText.width / 2, center.dy - 23));
     final unit = TextPainter(
-      text: const TextSpan(
-        text: 'x1000 RPM',
-        style: TextStyle(
-          color: silver,
-          fontSize: 10,
-          letterSpacing: 2,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
+      text: const TextSpan(text: 'x1000 RPM',
+        style: TextStyle(color: silver, fontSize: 8, letterSpacing: 1.8,
+          fontWeight: FontWeight.w700)),
+      textDirection: TextDirection.ltr)..layout();
+    unit.paint(canvas, Offset(center.dx - unit.width / 2, center.dy + 9));
 
-    unit.paint(
-      canvas,
-      Offset(
-        center.dx - unit.width / 2,
-        center.dy - 15,
-      ),
-    );
+    // Needle with shadow, luminous edge and machined hub.
+    final needleAngle = start + sweep * progress;
+    final needleEnd = Offset(center.dx + math.cos(needleAngle) * (radius - 18),
+        center.dy + math.sin(needleAngle) * (radius - 18));
+    canvas.drawLine(center.translate(1.5, 2), needleEnd.translate(1.5, 2),
+      Paint()..color = Colors.black.withOpacity(.8)..strokeWidth = 9
+        ..strokeCap = StrokeCap.round);
+    if (hot) {
+      canvas.drawLine(center, needleEnd, Paint()..color = red.withOpacity(.6)
+        ..strokeWidth = 18..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10)
+        ..strokeCap = StrokeCap.round);
+    }
+    canvas.drawLine(center, needleEnd, Paint()..color = const Color(0xFFFF3942)
+      ..strokeWidth = 4.2..strokeCap = StrokeCap.round);
+    canvas.drawCircle(center, 10, Paint()..shader = const RadialGradient(
+      colors: [Color(0xFFE9EDF1), Color(0xFF565E68), Color(0xFF171A1E)],
+    ).createShader(Rect.fromCircle(center: center, radius: 10)));
+    canvas.drawCircle(center, 3.5, Paint()..color = red);
+
+    // Small redline warning indicator.
+    if (hot) {
+      final pulse = .45 + .35 * (math.sin(value / 110) + 1) / 2;
+      canvas.drawArc(rect.inflate(22), start + sweep * .76, sweep * .24, false,
+        Paint()..color = red.withOpacity(pulse)
+          ..style = PaintingStyle.stroke..strokeWidth = 3
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5));
+    }
   }
 
   @override
-  bool shouldRepaint(covariant GaugePainter oldDelegate) {
-    return oldDelegate.value != value ||
-        oldDelegate.redline != redline;
-  }
+  bool shouldRepaint(covariant GaugePainter oldDelegate) =>
+      oldDelegate.value != value || oldDelegate.redline != redline;
 }
 
 // CARACAL LOGO
@@ -1619,9 +1536,7 @@ class _GarageScreenState extends State<GarageScreen> {
         const SizedBox(height: 8),
         Text(user.email ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 5),
-        Text(t('سطح دسترسی: ', 'Role: ') + role.toUpperCase(), style: const TextStyle(color: red, fontSize: 12, fontWeight: FontWeight.bold)),
         const SizedBox(height: 12),
-        if (role == 'owner' || role == 'admin') SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CaracalAdminScreen(english: en, isOwner: role == 'owner', permissions: Map<String, dynamic>.from(profile?['permissions'] as Map? ?? {})))), icon: const Icon(Icons.admin_panel_settings), label: Text(t('پنل مدیریت', 'ADMIN PANEL')))),
         SizedBox(width: double.infinity, child: TextButton.icon(onPressed: signOut, icon: const Icon(Icons.logout), label: Text(t('خروج از حساب', 'SIGN OUT')))),
       ])),
       const SizedBox(height: 18),
@@ -1637,267 +1552,6 @@ class _GarageScreenState extends State<GarageScreen> {
 
   Widget _card(Widget child) => Container(padding: const EdgeInsets.all(18), decoration: BoxDecoration(color: panel, borderRadius: BorderRadius.circular(18), border: Border.all(color: Colors.white10)), child: child);
 }
-
-class CaracalAdminScreen extends StatefulWidget {
-  final bool english;
-  final bool isOwner;
-  final Map<String, dynamic> permissions;
-  const CaracalAdminScreen({super.key, required this.english, required this.isOwner, required this.permissions});
-  @override
-  State<CaracalAdminScreen> createState() => _CaracalAdminScreenState();
-}
-
-class _CaracalAdminScreenState extends State<CaracalAdminScreen> {
-  bool loading = true;
-  String? message;
-  List<Map<String, dynamic>> users = [];
-  List<Map<String, dynamic>> lessons = [];
-  final email = TextEditingController();
-  bool manageContent = true;
-  bool publishContent = false;
-  bool manageUsers = false;
-  SupabaseClient get client => Supabase.instance.client;
-  String t(String fa, String en) => widget.english ? en : fa;
-  bool get canManageContent => widget.isOwner || widget.permissions['manage_content'] == true;
-  bool get canPublishContent => widget.isOwner || widget.permissions['publish_content'] == true;
-
-  @override
-  void initState() { super.initState(); load(); }
-  @override
-  void dispose() { email.dispose(); super.dispose(); }
-
-  Future<void> load() async {
-    if (mounted) setState(() { loading = true; message = null; });
-    try {
-      if (widget.isOwner) {
-        final rows = await client.from('profiles').select('id,email,role,permissions,created_at').order('created_at', ascending: false);
-        users = List<Map<String, dynamic>>.from(rows);
-      }
-      if (canManageContent) {
-        final content = await client.from('lessons').select('id,title,title_fa,title_en,summary,summary_fa,summary_en,body,body_fa,body_en,category,is_published,media_url,media_type,created_at').order('created_at', ascending: false);
-        lessons = List<Map<String, dynamic>>.from(content);
-      }
-      if (mounted) setState(() => loading = false);
-    } catch (e) {
-      if (mounted) setState(() { message = e.toString(); loading = false; });
-    }
-  }
-
-  Future<void> createAdmin() async {
-    final address = email.text.trim();
-    if (address.isEmpty || !address.contains('@')) { setState(() => message = t('ایمیل معتبر وارد کن.', 'Enter a valid email.')); return; }
-    setState(() { loading = true; message = null; });
-    try {
-      final response = await client.functions.invoke('create-admin', body: {'email': address, 'permissions': {'manage_content': manageContent, 'publish_content': publishContent, 'manage_users': manageUsers}});
-      if (response.status < 200 || response.status >= 300) throw Exception(response.data.toString());
-      email.clear();
-      if (mounted) setState(() => message = t('دعوت‌نامه مدیر ارسال شد.', 'Admin invitation sent.'));
-      await load();
-    } catch (e) { if (mounted) setState(() { message = e.toString(); loading = false; }); }
-  }
-
-  Future<void> saveAdminPermissions(String id, Map<String, dynamic> perms) async {
-    try {
-      await client.from('profiles').update({'permissions': perms}).eq('id', id).eq('role', 'admin');
-      if (mounted) setState(() => message = t('دسترسی‌های مدیر ذخیره شد.', 'Administrator permissions saved.'));
-      await load();
-    } catch (e) { if (mounted) setState(() => message = e.toString()); }
-  }
-
-  Future<void> openLessonEditor({Map<String, dynamic>? lesson}) async {
-    final title = TextEditingController(text: lesson?['title_fa']?.toString() ?? lesson?['title']?.toString() ?? '');
-    final titleEn = TextEditingController(text: lesson?['title_en']?.toString() ?? '');
-    final summary = TextEditingController(text: lesson?['summary_fa']?.toString() ?? lesson?['summary']?.toString() ?? '');
-    final summaryEn = TextEditingController(text: lesson?['summary_en']?.toString() ?? '');
-    final body = TextEditingController(text: lesson?['body_fa']?.toString() ?? lesson?['body']?.toString() ?? '');
-    final bodyEn = TextEditingController(text: lesson?['body_en']?.toString() ?? '');
-    final category = TextEditingController(text: lesson?['category']?.toString() ?? 'general');
-    String mediaType = lesson?['media_type']?.toString() ?? 'none';
-    String? mediaUrl = lesson?['media_url']?.toString();
-    bool published = lesson?['is_published'] == true;
-    bool uploading = false;
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => StatefulBuilder(builder: (ctx, setDialogState) {
-        Widget field(TextEditingController c, String label, {int lines = 1, bool required = false}) => Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: TextField(controller: c, maxLines: lines, decoration: InputDecoration(labelText: label, border: const OutlineInputBorder(), isDense: true),
-            onChanged: (_) {},),
-        );
-        return AlertDialog(
-          backgroundColor: panel,
-          title: Text(lesson == null ? t('افزودن مطلب جدید', 'ADD NEW CONTENT') : t('ویرایش مطلب', 'EDIT CONTENT')),
-          content: SizedBox(width: 520, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-            field(title, t('عنوان فارسی', 'Primary title')),
-            field(titleEn, t('عنوان انگلیسی', 'English title')),
-            field(summary, t('خلاصه مطلب', 'Summary'), lines: 2),
-            field(summaryEn, t('خلاصه انگلیسی', 'English summary'), lines: 2),
-            field(category, t('دسته‌بندی', 'Category')),
-            field(body, t('متن کامل آموزش', 'Full lesson text'), lines: 5),
-            field(bodyEn, t('متن انگلیسی آموزش', 'English lesson text'), lines: 5),
-            DropdownButtonFormField<String>(value: mediaType, decoration: InputDecoration(labelText: t('نوع فایل پیوست', 'Attachment type'), border: const OutlineInputBorder()),
-              items: [DropdownMenuItem(value: 'none', child: Text(t('بدون فایل', 'No attachment'))), DropdownMenuItem(value: 'image', child: Text(t('تصویر', 'Image'))), DropdownMenuItem(value: 'video', child: Text(t('ویدئو', 'Video'))), DropdownMenuItem(value: 'document', child: Text(t('فایل آموزشی', 'Document')))],
-              onChanged: (v) => setDialogState(() => mediaType = v ?? 'none')),
-            const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: uploading ? null : () async {
-                try {
-                  final result = await FilePicker.platform.pickFiles(withData: true, type: FileType.any);
-                  if (result == null || result.files.single.bytes == null) return;
-                  final file = result.files.single;
-                  final ext = (file.extension ?? 'bin').toLowerCase();
-                  final path = '${DateTime.now().millisecondsSinceEpoch}_${file.name.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_')}';
-                  setDialogState(() => uploading = true);
-                  final contentType = _mediaContentType(ext);
-                  await client.storage.from('lesson-media').uploadBinary(path, file.bytes!, fileOptions: FileOptions(contentType: contentType, upsert: true));
-                  mediaUrl = client.storage.from('lesson-media').getPublicUrl(path);
-                  if (mediaType == 'none') mediaType = _guessMediaType(ext);
-                  setDialogState(() => uploading = false);
-                } catch (e) {
-                  setDialogState(() => uploading = false);
-                  if (mounted) setState(() => message = '${t('بارگذاری فایل ناموفق بود: ', 'File upload failed: ')}$e');
-                }
-              },
-              icon: uploading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.upload_file),
-              label: Text(uploading ? t('در حال بارگذاری...', 'Uploading...') : t('انتخاب و بارگذاری فایل', 'Choose and upload file')),
-            ),
-            if (mediaUrl != null && mediaUrl!.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 8), child: SelectableText(mediaUrl!, style: const TextStyle(color: silver, fontSize: 10))),
-            if (canPublishContent) SwitchListTile(contentPadding: EdgeInsets.zero, value: published, activeColor: red, title: Text(t('انتشار مطلب', 'Publish content')), onChanged: (v) => setDialogState(() => published = v)),
-            if (!canPublishContent) Padding(padding: const EdgeInsets.only(top: 8), child: Text(t('این حساب فقط می‌تواند پیش‌نویس ذخیره کند؛ انتشار نیازمند مجوز Owner است.', 'This account can save drafts only; publishing requires permission.'), style: const TextStyle(color: Colors.orangeAccent, fontSize: 11))),
-          ]))),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(t('انصراف', 'Cancel'))),
-            FilledButton(onPressed: uploading ? null : () async {
-              if (title.text.trim().isEmpty || body.text.trim().isEmpty) {
-                setDialogState(() {});
-                setState(() => message = t('عنوان و متن آموزش الزامی است.', 'Title and lesson body are required.'));
-                return;
-              }
-              if (published && !canPublishContent) return;
-              try {
-                final values = {
-                  'title': title.text.trim(), 'title_fa': title.text.trim(), 'title_en': titleEn.text.trim(),
-                  'summary': summary.text.trim(), 'summary_fa': summary.text.trim(), 'summary_en': summaryEn.text.trim(),
-                  'body': body.text.trim(), 'body_fa': body.text.trim(), 'body_en': bodyEn.text.trim(),
-                  'category': category.text.trim().isEmpty ? 'general' : category.text.trim(),
-                  'media_url': mediaUrl, 'media_type': mediaType,
-                  'is_published': published,
-                };
-                if (lesson == null) {
-                  values['created_by'] = client.auth.currentUser!.id;
-                  await client.from('lessons').insert(values);
-                } else {
-                  await client.from('lessons').update(values).eq('id', lesson['id']);
-                }
-                if (mounted) Navigator.pop(dialogContext);
-                await load();
-              } catch (e) {
-                if (mounted) setState(() => message = e.toString());
-              }
-            }, child: Text(t('ذخیره مطلب', 'SAVE CONTENT'))),
-          ],
-        );
-      }),
-    );
-    title.dispose(); titleEn.dispose(); summary.dispose(); summaryEn.dispose(); body.dispose(); bodyEn.dispose(); category.dispose();
-  }
-
-  Future<void> deleteLesson(Map<String, dynamic> lesson) async {
-    try {
-      await client.from('lessons').delete().eq('id', lesson['id']);
-      await load();
-    } catch (e) { if (mounted) setState(() => message = e.toString()); }
-  }
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: bg,
-    appBar: AppBar(backgroundColor: bg, title: Text(t('پنل مدیریت کاراکال', 'CARACAL ADMIN')), actions: [IconButton(onPressed: load, icon: const Icon(Icons.refresh))]),
-    body: ListView(padding: const EdgeInsets.all(18), children: [
-      Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: red.withOpacity(.12), borderRadius: BorderRadius.circular(12), border: Border.all(color: red.withOpacity(.4))), child: Text(widget.isOwner ? t('OWNER — مالک اصلی و مرجع نهایی اختیار است. فقط Owner می‌تواند مدیر بسازد و سطح دسترسی مدیران را تغییر دهد.', 'OWNER — The root account has final authority. Only the Owner can create administrators and change their permissions.') : t('ADMIN — دسترسی این حساب فقط بر اساس مجوزهایی است که مالک تعیین کرده است.', 'ADMIN — This account is limited to permissions assigned by the Owner.'), style: const TextStyle(fontSize: 12))),
-      const SizedBox(height: 14),
-      if (widget.isOwner) Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: panel, borderRadius: BorderRadius.circular(14)), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Text(t('دعوت مدیر جدید', 'INVITE NEW ADMIN'), style: const TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 12),
-        TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: InputDecoration(labelText: t('ایمیل مدیر', 'Admin email'), border: const OutlineInputBorder())),
-        CheckboxListTile(contentPadding: EdgeInsets.zero, value: manageContent, onChanged: (v) => setState(() => manageContent = v ?? false), title: Text(t('مدیریت محتوا', 'Manage content'))),
-        CheckboxListTile(contentPadding: EdgeInsets.zero, value: publishContent, onChanged: (v) => setState(() => publishContent = v ?? false), title: Text(t('انتشار محتوا', 'Publish content'))),
-        CheckboxListTile(contentPadding: EdgeInsets.zero, value: manageUsers, onChanged: (v) => setState(() => manageUsers = v ?? false), title: Text(t('مدیریت کاربران', 'Manage users'))),
-        FilledButton(onPressed: loading ? null : createAdmin, child: Text(t('ارسال دعوت‌نامه', 'SEND INVITATION'))),
-      ])),
-      if (widget.isOwner) const SizedBox(height: 18),
-      if (widget.isOwner) Text(t('مدیریت مدیران و دسترسی‌ها', 'ADMINISTRATORS & PERMISSIONS'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
-      if (widget.isOwner) ...users.where((u) => u['role'] == 'owner' || u['role'] == 'admin').map((u) => _AdminPermissionTile(user: u, english: widget.english, onSave: (perms) => saveAdminPermissions(u['id'].toString(), perms))),
-      if (canManageContent) ...[
-        const SizedBox(height: 22),
-        Row(children: [Expanded(child: Text(t('مدیریت مطالب آموزشی', 'LEARNING CONTENT MANAGER'), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16))), IconButton(onPressed: () => openLessonEditor(), icon: const Icon(Icons.add_circle, color: red, size: 30))]),
-        SizedBox(width: double.infinity, child: FilledButton.icon(onPressed: () => openLessonEditor(), icon: const Icon(Icons.post_add), label: Text(t('افزودن مطلب جدید', 'ADD NEW CONTENT')))),
-        const SizedBox(height: 10),
-        if (lessons.isEmpty) Text(t('هنوز مطلبی ثبت نشده است.', 'No content has been added yet.'), style: const TextStyle(color: silver)),
-        ...lessons.map((lesson) => Card(color: panel, child: ListTile(
-          leading: Icon(lesson['is_published'] == true ? Icons.public : Icons.edit_note, color: lesson['is_published'] == true ? Colors.greenAccent : silver),
-          title: Text(lesson['title']?.toString() ?? ''),
-          subtitle: Text('${lesson['category'] ?? 'general'} • ${lesson['is_published'] == true ? t('منتشرشده', 'Published') : t('پیش‌نویس', 'Draft')}'),
-          trailing: PopupMenuButton<String>(onSelected: (v) { if (v == 'edit') openLessonEditor(lesson: lesson); if (v == 'delete') deleteLesson(lesson); }, itemBuilder: (_) => [PopupMenuItem(value: 'edit', child: Text(t('ویرایش', 'Edit'))), PopupMenuItem(value: 'delete', child: Text(t('حذف', 'Delete')))]),
-          onTap: () => openLessonEditor(lesson: lesson),
-        ))),
-      ],
-      if (loading) const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: red))),
-      if (message != null) Padding(padding: const EdgeInsets.all(12), child: SelectableText(message!, style: const TextStyle(color: silver))),
-    ]),
-  );
-}
-
-class _AdminPermissionTile extends StatefulWidget {
-  final Map<String, dynamic> user;
-  final bool english;
-  final Future<void> Function(Map<String, dynamic>) onSave;
-  const _AdminPermissionTile({required this.user, required this.english, required this.onSave});
-  @override
-  State<_AdminPermissionTile> createState() => _AdminPermissionTileState();
-}
-class _AdminPermissionTileState extends State<_AdminPermissionTile> {
-  late bool manageContent;
-  late bool publishContent;
-  late bool manageUsers;
-  @override
-  void initState() {
-    super.initState();
-    final p = widget.user['permissions'] as Map? ?? {};
-    manageContent = p['manage_content'] == true;
-    publishContent = p['publish_content'] == true;
-    manageUsers = p['manage_users'] == true;
-  }
-  @override
-  Widget build(BuildContext context) {
-    final en = widget.english;
-    return Card(color: panel, child: ExpansionTile(
-      leading: Icon(widget.user['role'] == 'owner' ? Icons.shield : Icons.admin_panel_settings, color: widget.user['role'] == 'owner' ? red : silver),
-      title: Text(widget.user['email']?.toString() ?? widget.user['id'].toString()),
-      subtitle: Text((widget.user['role'] ?? '').toString().toUpperCase()),
-      children: [
-        if (widget.user['role'] == 'admin') ...[
-          CheckboxListTile(value: manageContent, onChanged: (v) => setState(() => manageContent = v ?? false), title: Text(en ? 'Manage content' : 'مدیریت محتوا')),
-          CheckboxListTile(value: publishContent, onChanged: (v) => setState(() => publishContent = v ?? false), title: Text(en ? 'Publish content' : 'انتشار محتوا')),
-          CheckboxListTile(value: manageUsers, onChanged: (v) => setState(() => manageUsers = v ?? false), title: Text(en ? 'Manage users' : 'مدیریت کاربران')),
-          Padding(padding: const EdgeInsets.all(12), child: FilledButton(onPressed: () => widget.onSave({'manage_content': manageContent, 'publish_content': publishContent, 'manage_users': manageUsers}), child: Text(en ? 'Save permissions' : 'ذخیره دسترسی‌ها'))),
-        ] else Padding(padding: const EdgeInsets.all(12), child: Text(en ? 'Root owner account — protected role.' : 'حساب مالک اصلی — نقش محافظت‌شده.')),
-      ],
-    ));
-  }
-}
-
-String _guessMediaType(String ext) {
-  if (['jpg','jpeg','png','webp','gif'].contains(ext)) return 'image';
-  if (['mp4','mov','webm','m4v'].contains(ext)) return 'video';
-  return 'document';
-}
-String _mediaContentType(String ext) {
-  const types = {'jpg':'image/jpeg','jpeg':'image/jpeg','png':'image/png','webp':'image/webp','gif':'image/gif','mp4':'video/mp4','mov':'video/quicktime','webm':'video/webm','pdf':'application/pdf','doc':'application/msword','docx':'application/vnd.openxmlformats-officedocument.wordprocessingml.document','zip':'application/zip'};
-  return types[ext] ?? 'application/octet-stream';
-}
-
 
 // SETTINGS
 
