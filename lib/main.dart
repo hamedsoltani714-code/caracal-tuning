@@ -1260,11 +1260,32 @@ class LearnScreen extends StatefulWidget {
 }
 
 class _LearnScreenState extends State<LearnScreen> {
+  final TextEditingController _search = TextEditingController();
   List<Map<String, dynamic>> onlineLessons = [];
   bool loadingOnline = false;
   String? onlineError;
+  String selectedFilter = 'all';
+
   bool get english => widget.english;
   String t(String fa, String en) => english ? en : fa;
+
+  final List<Map<String, dynamic>> modules = [
+    {'icon': Icons.school_rounded, 'fa':'آموزش تخصصی خودرو','en':'Automotive Technical Education','descFa':'مسیرهای آموزشی از مبانی تا مباحث حرفه‌ای خودرو.','descEn':'Structured learning paths from fundamentals to advanced automotive topics.','group':'learn'},
+    {'icon': Icons.directions_car_filled, 'fa':'بانک اطلاعات فنی خودرو','en':'Vehicle Technical Database','descFa':'مشخصات فنی، سیستم‌ها و اطلاعات کاربردی خودروها.','descEn':'Vehicle specifications, systems and technical references.','group':'reference'},
+    {'icon': Icons.warning_amber_rounded, 'fa':'بانک کدهای خطای DTC','en':'DTC Error Code Database','descFa':'جست‌وجو و شناخت کدهای خطا و مفهوم آن‌ها.','descEn':'Search diagnostic trouble codes and understand their meaning.','group':'diagnosis'},
+    {'icon': Icons.memory, 'fa':'نقشه پایه ECU','en':'ECU Pinout Diagrams','descFa':'مرجع آموزشی پایه‌ها و اتصالات واحد کنترل الکترونیکی.','descEn':'Educational reference for ECU pins and connections.','group':'reference'},
+    {'icon': Icons.account_tree, 'fa':'نقشه سیم‌کشی خودرو','en':'Automotive Wiring Diagrams','descFa':'مطالعه ساختار مدارها و مسیرهای سیم‌کشی.','descEn':'Study circuit layouts and vehicle wiring paths.','group':'reference'},
+    {'icon': Icons.electrical_services, 'fa':'نقشه فیوز و رله','en':'Fuse & Relay Diagrams','descFa':'راهنمای آموزشی جعبه‌فیوزها و مدارهای حفاظتی.','descEn':'Educational guide to fuse boxes and protection circuits.','group':'reference'},
+    {'icon': Icons.settings, 'fa':'راهنمای تعمیر موتور','en':'Engine Repair Guides','descFa':'آشنایی با اجزای موتور، اصول سرویس و تعمیر.','descEn':'Engine components, service principles and repair guides.','group':'repair'},
+    {'icon': Icons.bolt, 'fa':'سیستم برق خودرو','en':'Automotive Electrical Systems','descFa':'مبانی برق، شارژ، استارت و مدارهای الکتریکی.','descEn':'Electrical fundamentals, charging, starting and circuits.','group':'repair'},
+    {'icon': Icons.tune, 'fa':'آموزش برنامه‌ریزی و ریمپ ECU','en':'ECU Programming & Remapping','descFa':'مفاهیم کالیبراسیون، ساختار داده و اصول ایمن ریمپ.','descEn':'Calibration concepts, data structure and safe remapping principles.','group':'learn'},
+    {'icon': Icons.settings_applications, 'fa':'گیربکس اتوماتیک','en':'Automatic Transmission','descFa':'شناخت ساختار، عملکرد و عیب‌یابی مقدماتی گیربکس.','descEn':'Transmission architecture, operation and basic diagnostics.','group':'repair'},
+    {'icon': Icons.sensors, 'fa':'سنسورها و عملگرها','en':'Sensors & Actuators','descFa':'نحوه عملکرد و نقش حسگرها و عملگرهای خودرو.','descEn':'How automotive sensors and actuators work.','group':'diagnosis'},
+    {'icon': Icons.menu_book, 'fa':'فرهنگ لغت تخصصی خودرو','en':'Automotive Technical Dictionary','descFa':'اصطلاحات تخصصی فارسی و انگلیسی صنعت خودرو.','descEn':'Persian and English automotive terminology.','group':'reference'},
+    {'icon': Icons.calculate, 'fa':'ماشین‌حساب‌های فنی','en':'Automotive Calculators','descFa':'ابزارهای محاسباتی آموزشی برای پارامترهای خودرو.','descEn':'Learning calculators for common vehicle parameters.','group':'tools'},
+    {'icon': Icons.smart_toy, 'fa':'دستیار هوشمند عیب‌یابی','en':'AI Diagnostic Assistant','descFa':'راهنمای مرحله‌ای تحلیل علائم و اطلاعات عیب‌یابی.','descEn':'Step-by-step assistance for interpreting symptoms and diagnostic data.','group':'tools'},
+    {'icon': Icons.quiz, 'fa':'آزمون‌ها و سنجش تخصصی','en':'Professional Quizzes & Exams','descFa':'آزمون‌های آموزشی برای سنجش دانش فنی.','descEn':'Knowledge checks and technical learning assessments.','group':'learn'},
+  ];
 
   @override
   void initState() {
@@ -1272,9 +1293,15 @@ class _LearnScreenState extends State<LearnScreen> {
     loadOnlineLessons();
   }
 
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
   Future<void> loadOnlineLessons() async {
     if (!supabaseConfigured) return;
-    setState(() { loadingOnline = true; onlineError = null; });
+    if (mounted) setState(() { loadingOnline = true; onlineError = null; });
     try {
       final rows = await Supabase.instance.client
           .from('lessons')
@@ -1291,98 +1318,249 @@ class _LearnScreenState extends State<LearnScreen> {
   }
 
   void openOnlineLesson(Map<String, dynamic> lesson) {
-    final title = (english ? lesson['title_en'] : lesson['title_fa'] ?? lesson['title'])?.toString();
-    final body = (english ? lesson['body_en'] : lesson['body_fa'] ?? lesson['body'])?.toString();
-    final mediaUrl = lesson['media_url']?.toString();
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: panel,
-        title: Text((title?.isNotEmpty == true ? title : lesson['title_fa']?.toString() ?? lesson['title']?.toString()) ?? ''),
-        content: SingleChildScrollView(child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text((english ? lesson['summary_en'] : lesson['summary_fa'] ?? lesson['summary'])?.toString() ?? '', style: const TextStyle(color: silver)),
-            const SizedBox(height: 12),
-            Text(body?.isNotEmpty == true ? body! : (lesson['body']?.toString() ?? '')),
-            if (mediaUrl != null && mediaUrl.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              if (lesson['media_type'] == 'image') ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(mediaUrl, fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => Text(t('پیش‌نمایش تصویر در دسترس نیست.', 'Image preview unavailable.'))),
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: () async {
-                  final uri = Uri.tryParse(mediaUrl);
-                  if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
-                },
-                icon: const Icon(Icons.open_in_new),
-                label: Text(t('باز کردن فایل پیوست', 'Open attachment')),
-              ),
-            ],
-          ],
-        )),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(t('بستن', 'Close')))],
-      ),
-    );
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) =>
+      OnlineLessonDetailScreen(lesson: lesson, english: english)));
+  }
+
+  void openModule(Map<String, dynamic> module) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) =>
+      ModuleDetailScreen(module: module, english: english)));
   }
 
   @override
   Widget build(BuildContext context) {
-    final items = [
-      [Icons.memory, 'آشنایی با ECU', 'ECU Fundamentals'],
-      [Icons.speed, 'اصول ریمپ', 'Remapping Basics'],
-      [Icons.electric_bolt, 'سیستم جرقه', 'Ignition System'],
-      [Icons.local_gas_station, 'سیستم سوخت‌رسانی', 'Fuel System'],
-      [Icons.analytics, 'تحلیل پارامترها', 'Parameter Analysis'],
-      [Icons.build, 'عیب‌یابی خودرو', 'Vehicle Diagnostics'],
-      [Icons.settings_suggest, 'ساختار موتور', 'Engine Architecture'],
-      [Icons.show_chart, 'مبانی جداول موتور', 'Engine Maps Basics'],
-    ];
+    final query = _search.text.trim().toLowerCase();
+    final visible = modules.where((m) {
+      final groupOk = selectedFilter == 'all' || m['group'] == selectedFilter;
+      final title = (english ? m['en'] : m['fa']).toString().toLowerCase();
+      final other = (english ? m['fa'] : m['en']).toString().toLowerCase();
+      return groupOk && (query.isEmpty || title.contains(query) || other.contains(query));
+    }).toList();
+
     return RefreshIndicator(
       color: red,
       onRefresh: loadOnlineLessons,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
         children: [
           Row(children: [
-            Expanded(child: Text(t('آموزش تخصصی', 'TECHNICAL ACADEMY'), style: const TextStyle(fontSize: 23, fontWeight: FontWeight.w900))),
-            IconButton(onPressed: loadOnlineLessons, icon: const Icon(Icons.refresh, color: silver)),
+            Expanded(child: Text(t('مرکز دانش کاراکال','CARACAL KNOWLEDGE HUB'),
+              style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w900, letterSpacing: .3))),
+            IconButton(tooltip: t('تازه‌سازی','Refresh'), onPressed: loadOnlineLessons,
+              icon: const Icon(Icons.refresh, color: silver)),
           ]),
-          const SizedBox(height: 7),
-          Text(t('دانش فنی، از پایه تا پیشرفته', 'Automotive knowledge from basic to advanced'), style: const TextStyle(color: silver, fontSize: 12)),
+          const SizedBox(height: 5),
+          Text(t('۱۵ بخش تخصصی؛ هر بخش با صفحه و جست‌وجوی مستقل','15 specialist modules, each with its own detail page and discovery'),
+            style: const TextStyle(color: silver, fontSize: 11)),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _search,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              hintText: t('جست‌وجو در بخش‌های فنی...','Search technical modules...'),
+              prefixIcon: const Icon(Icons.search, color: red),
+              suffixIcon: _search.text.isEmpty ? null : IconButton(
+                onPressed: () { _search.clear(); setState(() {}); },
+                icon: const Icon(Icons.close)),
+              filled: true, fillColor: panel,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(15),
+                borderSide: const BorderSide(color: Colors.white12)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15),
+                borderSide: const BorderSide(color: Colors.white12)),
+            ),
+          ),
+          const SizedBox(height: 13),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: [
+              _filterChip('all', t('همه','All')),
+              _filterChip('learn', t('آموزش','Learning')),
+              _filterChip('diagnosis', t('عیب‌یابی','Diagnostics')),
+              _filterChip('reference', t('نقشه و مرجع','References')),
+              _filterChip('repair', t('تعمیرات','Repair')),
+              _filterChip('tools', t('ابزارها','Tools')),
+            ]),
+          ),
           const SizedBox(height: 18),
           if (onlineLessons.isNotEmpty) ...[
-            Text(t('مطالب جدید منتشرشده', 'NEW PUBLISHED CONTENT'), style: const TextStyle(color: red, fontWeight: FontWeight.w900)),
+            _sectionTitle(t('مطالب منتشرشده','PUBLISHED CONTENT'), Icons.new_releases),
             const SizedBox(height: 10),
             for (final lesson in onlineLessons)
               FeatureTile(
                 icon: Icons.auto_stories,
-                title: ((english ? lesson['title_en'] : lesson['title'])?.toString().trim().isNotEmpty == true)
-                    ? (english ? lesson['title_en'] : lesson['title']).toString()
+                title: ((english ? lesson['title_en'] : lesson['title_fa'] ?? lesson['title'])?.toString().trim().isNotEmpty == true)
+                    ? (english ? lesson['title_en'] : lesson['title_fa'] ?? lesson['title']).toString()
                     : (lesson['title']?.toString() ?? ''),
-                subtitle: ((english ? lesson['summary_en'] : lesson['summary'])?.toString() ?? ''),
+                subtitle: (english ? lesson['summary_en'] : lesson['summary_fa'] ?? lesson['summary'])?.toString() ?? '',
                 onTap: () => openOnlineLesson(lesson),
               ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
           ],
-          if (loadingOnline) const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(color: red))),
-          if (onlineError != null) Text(t('بارگذاری مطالب آنلاین انجام نشد: ', 'Could not load online content: ') + onlineError!, style: const TextStyle(color: Colors.orangeAccent, fontSize: 11)),
-          Text(t('آموزش‌های پایه', 'CORE LESSONS'), style: const TextStyle(fontWeight: FontWeight.w900, color: silver)),
-          const SizedBox(height: 10),
-          for (final item in items)
-            FeatureTile(
-              icon: item[0] as IconData,
-              title: t(item[1] as String, item[2] as String),
-              subtitle: t('برای مشاهده و یادگیری انتخاب کنید', 'Tap to open this lesson'),
-              onTap: () => showLesson(context, english, item[2] as String),
-            ),
+          if (loadingOnline) const Center(child: Padding(
+            padding: EdgeInsets.all(12), child: CircularProgressIndicator(color: red))),
+          if (onlineError != null) Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(t('بارگذاری مطالب آنلاین انجام نشد: ','Online content could not be loaded: ') + onlineError!,
+              style: const TextStyle(color: Colors.orangeAccent, fontSize: 11))),
+          _sectionTitle(t('فهرست بخش‌های تخصصی','SPECIALIST MODULES'), Icons.grid_view_rounded),
+          const SizedBox(height: 11),
+          if (visible.isEmpty)
+            Padding(padding: const EdgeInsets.all(28),
+              child: Center(child: Text(t('موردی پیدا نشد.','No modules found.'),
+                style: const TextStyle(color: silver)))),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: visible.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2, mainAxisSpacing: 11, crossAxisSpacing: 11,
+              childAspectRatio: .98),
+            itemBuilder: (_, i) {
+              final m = visible[i];
+              return InkWell(
+                borderRadius: BorderRadius.circular(17),
+                onTap: () => openModule(m),
+                child: Container(
+                  padding: const EdgeInsets.all(13),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(17),
+                    gradient: const LinearGradient(begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF30353B), Color(0xFF15171B), Color(0xFF090A0C)]),
+                    border: Border.all(color: const Color(0xFF58616B)),
+                    boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 9, offset: Offset(0, 4))]),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                    Icon(m['icon'] as IconData, color: silver, size: 28),
+                    Text(english ? m['en'] as String : m['fa'] as String,
+                      maxLines: 2, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12)),
+                    Row(children: [
+                      Expanded(child: Text(t('ورود به بخش','Open module'),
+                        style: const TextStyle(color: Colors.white54, fontSize: 9))),
+                      const Icon(Icons.arrow_forward_ios, color: red, size: 12),
+                    ]),
+                  ]),
+                ),
+              );
+            },
+          ),
         ],
       ),
+    );
+  }
+
+  Widget _filterChip(String value, String label) => Padding(
+    padding: const EdgeInsetsDirectional.only(end: 7),
+    child: ChoiceChip(
+      label: Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+      selected: selectedFilter == value,
+      onSelected: (_) => setState(() => selectedFilter = value),
+      selectedColor: red.withOpacity(.22),
+      backgroundColor: panel,
+      side: BorderSide(color: selectedFilter == value ? red : Colors.white12),
+    ),
+  );
+
+  Widget _sectionTitle(String title, IconData icon) => Row(children: [
+    Icon(icon, color: red, size: 17), const SizedBox(width: 8),
+    Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: .5))),
+  ]);
+}
+
+class ModuleDetailScreen extends StatelessWidget {
+  final Map<String, dynamic> module;
+  final bool english;
+  const ModuleDetailScreen({super.key, required this.module, required this.english});
+  String t(String fa, String en) => english ? en : fa;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = english ? module['en'] as String : module['fa'] as String;
+    final description = english ? module['descEn'] as String : module['descFa'] as String;
+    return Scaffold(
+      appBar: AppBar(title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        backgroundColor: bg, foregroundColor: Colors.white),
+      body: ListView(padding: const EdgeInsets.all(18), children: [
+        Container(padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(22),
+            gradient: const LinearGradient(colors: [Color(0xFF343A42), Color(0xFF111316), Colors.black]),
+            border: Border.all(color: const Color(0xFF737D88))),
+          child: Column(children: [
+            Icon(module['icon'] as IconData, size: 52, color: silver),
+            const SizedBox(height: 14),
+            Text(title, textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 8),
+            Text(description, textAlign: TextAlign.center,
+              style: const TextStyle(color: silver, height: 1.7)),
+          ]),
+        ),
+        const SizedBox(height: 20),
+        Text(t('در این بخش چه چیزهایی یاد می‌گیری؟','WHAT YOU WILL FIND'),
+          style: const TextStyle(color: red, fontWeight: FontWeight.w900, fontSize: 12)),
+        const SizedBox(height: 10),
+        for (final item in [
+          t('مفاهیم پایه و اصطلاحات کلیدی','Core concepts and terminology'),
+          t('ساختار سیستم‌ها و اجزای اصلی','System architecture and main components'),
+          t('روش مطالعه اطلاعات و تحلیل داده‌ها','How to read information and interpret data'),
+          t('نکات ایمنی و خطاهای رایج','Safety notes and common pitfalls'),
+        ])
+          FeatureTile(icon: Icons.check_circle_outline, title: item,
+            subtitle: t('محتوای آموزشی این بخش به‌مرور از پنل مدیریت منتشر می‌شود.','Learning material for this module is published through the admin panel.')),
+        const SizedBox(height: 12),
+        Container(padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(color: panel, borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.white10)),
+          child: Text(t('برای مشاهده مطالب اختصاصی این بخش، به قسمت آموزش‌های منتشرشده برگرد و از جست‌وجو استفاده کن.','For dedicated lessons, return to published learning content and use search.'),
+            style: const TextStyle(color: silver, height: 1.6))),
+      ]),
+    );
+  }
+}
+
+class OnlineLessonDetailScreen extends StatelessWidget {
+  final Map<String, dynamic> lesson;
+  final bool english;
+  const OnlineLessonDetailScreen({super.key, required this.lesson, required this.english});
+  String t(String fa, String en) => english ? en : fa;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = (english ? lesson['title_en'] : lesson['title_fa'] ?? lesson['title'])?.toString()
+        ?? lesson['title']?.toString() ?? '';
+    final summary = (english ? lesson['summary_en'] : lesson['summary_fa'] ?? lesson['summary'])?.toString() ?? '';
+    final body = (english ? lesson['body_en'] : lesson['body_fa'] ?? lesson['body'])?.toString()
+        ?? lesson['body']?.toString() ?? '';
+    final media = lesson['media_url']?.toString() ?? '';
+    return Scaffold(
+      appBar: AppBar(title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        backgroundColor: bg, foregroundColor: Colors.white),
+      body: ListView(padding: const EdgeInsets.all(18), children: [
+        Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+        if (summary.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Text(summary, style: const TextStyle(color: silver, fontSize: 13, height: 1.7)),
+        ],
+        const SizedBox(height: 18),
+        SelectableText(body, style: const TextStyle(fontSize: 14, height: 1.9)),
+        if (media.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          if (lesson['media_type'] == 'image')
+            ClipRRect(borderRadius: BorderRadius.circular(14),
+              child: Image.network(media, fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => Text(t('تصویر بارگذاری نشد.','Image could not be loaded.')))),
+          OutlinedButton.icon(
+            onPressed: () async {
+              final uri = Uri.tryParse(media);
+              if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
+            },
+            icon: const Icon(Icons.open_in_new),
+            label: Text(t('باز کردن فایل پیوست','Open attachment')),
+          ),
+        ],
+      ]),
     );
   }
 }
