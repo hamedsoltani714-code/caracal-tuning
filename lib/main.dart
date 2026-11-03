@@ -11,13 +11,10 @@ import 'package:video_player/video_player.dart';
 import 'booking_admin_screens.dart';
 
 const String supabaseUrl =
-    String.fromEnvironment('SUPABASE_URL').trim();
+    String.fromEnvironment('SUPABASE_URL').trim().replaceAll(RegExp(r'/+$'), '');
 
-final String supabaseUrl =
-    const String.fromEnvironment('SUPABASE_URL').trim();
-
-final String supabaseAnonKey =
-    const String.fromEnvironment('SUPABASE_ANON_KEY').trim();
+const String supabaseAnonKey =
+    String.fromEnvironment('SUPABASE_ANON_KEY').trim();
 
 bool supabaseConfigured = false;
 
@@ -31,7 +28,7 @@ void main() async {
       validUrl != null &&
       validUrl.scheme == 'https' &&
       validUrl.host.isNotEmpty &&
-      validUrl.path.isEmpty) {
+      (validUrl.path.isEmpty || validUrl.path == '/')) {
     try {
       await Supabase.initialize(
         url: supabaseUrl,
@@ -1432,7 +1429,18 @@ class _GarageScreenState extends State<GarageScreen> {
   @override
   void initState() {
     super.initState();
-    if (configured && client.auth.currentUser != null) loadAccount();
+    if (configured) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        try {
+          if (client.auth.currentUser != null) {
+            runBusy(loadAccount);
+          }
+        } catch (e) {
+          if (mounted) setState(() => error = e.toString());
+        }
+      });
+    }
   }
 
   @override
@@ -1453,16 +1461,38 @@ class _GarageScreenState extends State<GarageScreen> {
   Future<void> authenticate() => runBusy(() async {
     final email = emailController.text.trim();
     final password = passwordController.text;
-    if (email.isEmpty || password.length < 6) {
-      throw Exception(t('ایمیل و گذرواژه حداقل ۶ کاراکتری را وارد کن.', 'Enter an email and a password of at least 6 characters.'));
+    if (email.isEmpty || !email.contains('@') || password.length < 6) {
+      throw Exception(t('ایمیل معتبر و گذرواژه حداقل ۶ کاراکتری را وارد کن.', 'Enter a valid email and a password of at least 6 characters.'));
     }
-    if (signUp) {
-      await client.auth.signUp(email: email, password: password);
-    } else {
-      await client.auth.signInWithPassword(email: email, password: password);
+    try {
+      if (signUp) {
+        final response = await client.auth.signUp(email: email, password: password);
+        if (response.session == null) {
+          if (mounted) setState(() => error = t('حساب ساخته شد؛ ایمیل خود را برای تأیید بررسی کن.', 'Account created. Check your email to confirm it.'));
+          return;
+        }
+      } else {
+        await client.auth.signInWithPassword(email: email, password: password);
+      }
+      await loadAccount();
+    } on AuthException catch (e) {
+      throw Exception(_authError(e));
     }
-    await loadAccount();
   });
+
+  String _authError(AuthException e) {
+    final message = e.message.toLowerCase();
+    if (message.contains('invalid login credentials')) {
+      return t('ایمیل یا گذرواژه اشتباه است.', 'Email or password is incorrect.');
+    }
+    if (message.contains('email not confirmed')) {
+      return t('ابتدا ایمیل خود را تأیید کن.', 'Please confirm your email first.');
+    }
+    if (message.contains('network') || message.contains('socket') || message.contains('timeout')) {
+      return t('ارتباط با سرور برقرار نشد؛ اینترنت و تنظیمات Supabase را بررسی کن.', 'Could not reach the server. Check your internet and Supabase settings.');
+    }
+    return e.message;
+  }
 
   Future<void> loadAccount() async {
     final user = client.auth.currentUser;
@@ -1606,7 +1636,7 @@ class _CaracalAdminScreenState extends State<CaracalAdminScreen> {
     if (address.isEmpty || !address.contains('@')) { setState(() => message = t('ایمیل معتبر وارد کن.', 'Enter a valid email.')); return; }
     setState(() { loading = true; message = null; });
     try {
-      final response = await client.functions.invoke('rapid-responder', body: {'email': address, 'permissions': {'manage_content': manageContent, 'publish_content': publishContent, 'manage_users': manageUsers}});
+      final response = await client.functions.invoke('create-admin', body: {'email': address, 'permissions': {'manage_content': manageContent, 'publish_content': publishContent, 'manage_users': manageUsers}});
       if (response.status < 200 || response.status >= 300) throw Exception(response.data.toString());
       email.clear();
       if (mounted) setState(() => message = t('دعوت‌نامه مدیر ارسال شد.', 'Admin invitation sent.'));
