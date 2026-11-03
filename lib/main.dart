@@ -450,20 +450,7 @@ class HomeScreen extends StatelessWidget {
               tooltip: t('اعلان‌ها', 'Notifications'),
               onPressed: () => showDialog<void>(
                 context: context,
-                builder: (dialogContext) => AlertDialog(
-                  backgroundColor: panel,
-                  title: Text(t('مرکز اعلان‌ها', 'Notification Center')),
-                  content: Text(t(
-                    'فعلاً اعلان جدیدی وجود ندارد. اعلان‌های آموزشی و به‌روزرسانی‌ها در این بخش نمایش داده می‌شوند.',
-                    'There are no new notifications. Learning updates and app announcements will appear here.',
-                  )),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(dialogContext),
-                      child: Text(t('متوجه شدم', 'Got it')),
-                    ),
-                  ],
-                ),
+                builder: (_) => NotificationCenterDialog(english: english),
               ),
               icon: const Icon(Icons.notifications_none, color: silver),
             ),
