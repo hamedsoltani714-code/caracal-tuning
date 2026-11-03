@@ -3,7 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 const url = String.fromEnvironment('SUPABASE_URL', defaultValue: 'https://fabbzaviesndfobxhrxf.supabase.co');
-const anon = String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmYWJiemF2aWVzbmRmb2J4aHJ4ZiIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzkzNTMxMjY3LCJleHAiOjIxMDkxMDcyNjd9.mwJfaLmV0dKso2dsXxX3gr2naFYqFEFtGi6Nw731RNk');
+const anon = String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZhYmJ6YXZpZXNuZGZvYnhocnhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1MzEyNjcsImV4cCI6MjEwOTEwNzI2N30.mwJfaLmV0dKso2dsXxX3gr2naFYqFEFtGi6Nw731RNk');
 const ownerEmail = 'hamed.soltani714@gmail.com';
 const bg = Color(0xFF08090B), panel = Color(0xFF15171B), silver = Color(0xFFC5CBD2), red = Color(0xFFFF3038);
 SupabaseClient get db => Supabase.instance.client;
