@@ -1489,16 +1489,24 @@ class _GarageScreenState extends State<GarageScreen> {
     final p = await client.from('profiles').select('id,email,role,permissions,created_at').eq('id', user.id).maybeSingle();
     // A garage request must never invalidate a successful authentication.
     List<Map<String, dynamic>> loadedVehicles = [];
+    List<Map<String, dynamic>> loadedMemberships = [];
     try {
       final v = await client.from('vehicles').select('id,user_id,name,created_at').eq('user_id', user.id).order('created_at', ascending: false);
       loadedVehicles = List<Map<String, dynamic>>.from(v);
     } catch (e) {
-      debugPrint('CARACAL garage load warning: $e');
+      debugPrint('CARACAL garage vehicles warning: $e');
+    }
+    try {
+      final m = await client.from('memberships').select('id,plan,status,starts_at,ends_at,notes,created_at').eq('user_id', user.id).order('created_at', ascending: false).limit(10);
+      loadedMemberships = List<Map<String, dynamic>>.from(m);
+    } catch (e) {
+      debugPrint('CARACAL membership load warning: $e');
     }
     if (!mounted) return;
     setState(() {
       profile = p ?? {'id': user.id, 'email': user.email, 'role': 'user', 'permissions': <String, dynamic>{}};
       vehicles = loadedVehicles;
+      memberships = loadedMemberships;
     });
   }
 
