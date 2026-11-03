@@ -16,3 +16,8 @@ dev_dependencies:
   flutter_lints: 5.0.0
 flutter:
   uses-material-design: true
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/130315.png"
