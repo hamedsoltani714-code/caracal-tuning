@@ -32,6 +32,8 @@ jobs:
           if [ ! -d android ]; then
             flutter create --project-name caracal_admin --platforms=android .
           fi
+      - name: Set app display name
+        run: sed -i 's/android:label="caracal_admin"/android:label="CARACAL ADMIN"/' android/app/src/main/AndroidManifest.xml
       - name: Install dependencies
         run: flutter pub get
       - name: Analyze
