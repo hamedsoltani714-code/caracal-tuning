@@ -247,7 +247,7 @@ class _AdminHomeState extends State<AdminHome>{
     await showDialog(context:context,builder:(ctx)=>StatefulBuilder(builder:(ctx,setDialog)=>AlertDialog(
       backgroundColor:panel,title:Text(existing==null?'اشتراک جدید':'ویرایش اشتراک'),
       content:SizedBox(width:420,child:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
-        DropdownButtonFormField<String>(value:userId,decoration:const InputDecoration(labelText:'کاربر'),items:users.map((u)=>DropdownMenuItem(value:u['id'].toString(),child:Text(u['email']?.toString()??u['id'].toString()))).toList(),onChanged:(v)=>setDialog(()=>userId=v)),
+        DropdownButtonFormField<String>(value:userId,decoration:const InputDecoration(labelText:'کاربر'),items:users.map((u)=>DropdownMenuItem(value:u['id'].toString(),child:Text(u['role']=='owner'?'مالک اصلی':(u['email']?.toString()??u['id'].toString())))).toList(),onChanged:(v)=>setDialog(()=>userId=v)),
         TextField(controller:plan,decoration:const InputDecoration(labelText:'نام طرح')),
         DropdownButtonFormField<String>(value:status,decoration:const InputDecoration(labelText:'وضعیت'),items:['pending','active','expired','cancelled'].map((v)=>DropdownMenuItem(value:v,child:Text(v))).toList(),onChanged:(v)=>setDialog(()=>status=v??status)),
         TextField(controller:notes,maxLines:3,decoration:const InputDecoration(labelText:'یادداشت')),
