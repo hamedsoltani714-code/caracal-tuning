@@ -1363,7 +1363,6 @@ class _GarageScreenState extends State<GarageScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final vehicleController = TextEditingController();
-  static const String ownerEmail = 'hamed.soltani714@gmail.com';
   bool busy = false;
   bool signUp = false;
   String? error;
