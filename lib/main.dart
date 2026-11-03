@@ -1468,7 +1468,11 @@ class _GarageScreenState extends State<GarageScreen> {
   });
 
   Future<void> sendOwnerCode() => runBusy(() async {
-    final address = emailController.text.trim().toLowerCase();
+    var address = emailController.text.trim().toLowerCase();
+    if (address.isEmpty) {
+      emailController.text = ownerEmail;
+      address = ownerEmail;
+    }
     if (address != ownerEmail) {
       throw Exception(t('برای ورود مالک، ایمیل اصلی مالک را وارد کن.', 'Use the registered owner email address.'));
     }
@@ -1584,6 +1588,8 @@ class _GarageScreenState extends State<GarageScreen> {
       FilledButton(onPressed: busy ? null : authenticate, child: Text(t('ورود با گذرواژه', 'SIGN IN WITH PASSWORD'))),
       const Divider(height: 28, color: Colors.white24),
       Text(t('ورود مالک با کد ایمیل', 'OWNER EMAIL CODE SIGN-IN'), textAlign: TextAlign.center, style: const TextStyle(color: silver, fontWeight: FontWeight.bold)),
+      const SizedBox(height: 5),
+      const Text(ownerEmail, textAlign: TextAlign.center, style: TextStyle(color: Colors.white60, fontSize: 12)),
       const SizedBox(height: 8),
       if (ownerCodeSent) ...[
         TextField(controller: codeController, keyboardType: TextInputType.number, maxLength: 8, decoration: InputDecoration(labelText: t('کد ارسال‌شده به ایمیل مالک', 'Code sent to owner email'), border: const OutlineInputBorder())),
