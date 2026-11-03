@@ -1362,9 +1362,7 @@ class GarageScreen extends StatefulWidget {
 class _GarageScreenState extends State<GarageScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
-  final codeController = TextEditingController();
   final vehicleController = TextEditingController();
-  bool ownerCodeSent = false;
   static const String ownerEmail = 'hamed.soltani714@gmail.com';
   bool busy = false;
   bool signUp = false;
@@ -1399,7 +1397,6 @@ class _GarageScreenState extends State<GarageScreen> {
   void dispose() {
     emailController.dispose();
     passwordController.dispose();
-    codeController.dispose();
     vehicleController.dispose();
     super.dispose();
   }
@@ -1431,42 +1428,6 @@ class _GarageScreenState extends State<GarageScreen> {
     } on AuthException catch (e) {
       throw Exception(_authError(e));
     }
-  });
-
-  Future<void> sendOwnerCode() => runBusy(() async {
-    var address = emailController.text.trim().toLowerCase();
-    if (address.isEmpty) {
-      emailController.text = ownerEmail;
-      address = ownerEmail;
-    }
-    if (address != ownerEmail) {
-      throw Exception(t('برای ورود مالک، ایمیل اصلی مالک را وارد کن.', 'Use the registered owner email address.'));
-    }
-    await client.auth.signInWithOtp(
-      email: ownerEmail,
-      shouldCreateUser: false,
-    );
-    if (mounted) {
-      setState(() {
-        ownerCodeSent = true;
-        error = t('کد ورود به ایمیل مالک ارسال شد. پوشه هرزنامه را هم بررسی کن.', 'A sign-in code was sent to the owner email. Check spam too.');
-      });
-    }
-  });
-
-  Future<void> verifyOwnerCode() => runBusy(() async {
-    final code = codeController.text.trim();
-    if (emailController.text.trim().toLowerCase() != ownerEmail || code.length < 6) {
-      throw Exception(t('ایمیل مالک و کد معتبر را وارد کن.', 'Enter the owner email and a valid code.'));
-    }
-    await client.auth.verifyOTP(
-      type: OtpType.email,
-      email: ownerEmail,
-      token: code,
-    );
-    codeController.clear();
-    if (mounted) setState(() => ownerCodeSent = false);
-    await loadAccount();
   });
 
   String _authError(AuthException e) {
@@ -1560,24 +1521,13 @@ class _GarageScreenState extends State<GarageScreen> {
       TextField(controller: passwordController, obscureText: true, decoration: InputDecoration(labelText: t('گذرواژه', 'Password'), border: const OutlineInputBorder())),
       const SizedBox(height: 14),
       FilledButton(onPressed: busy ? null : authenticate, child: Text(t('ورود با گذرواژه', 'SIGN IN WITH PASSWORD'))),
-      const Divider(height: 28, color: Colors.white24),
-      Text(t('ورود مالک با کد ایمیل', 'OWNER EMAIL CODE SIGN-IN'), textAlign: TextAlign.center, style: const TextStyle(color: silver, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 5),
-      const Text(ownerEmail, textAlign: TextAlign.center, style: TextStyle(color: Colors.white60, fontSize: 12)),
-      const SizedBox(height: 8),
-      if (ownerCodeSent) ...[
-        TextField(controller: codeController, keyboardType: TextInputType.number, maxLength: 8, decoration: InputDecoration(labelText: t('کد ارسال‌شده به ایمیل مالک', 'Code sent to owner email'), border: const OutlineInputBorder())),
-        FilledButton(onPressed: busy ? null : verifyOwnerCode, child: Text(t('تأیید کد و ورود مالک', 'VERIFY CODE & SIGN IN'))),
-        TextButton(onPressed: busy ? null : sendOwnerCode, child: Text(t('ارسال مجدد کد', 'RESEND CODE'))),
-      ] else
-        OutlinedButton.icon(onPressed: busy ? null : sendOwnerCode, icon: const Icon(Icons.mark_email_read_outlined), label: Text(t('ارسال کد به ایمیل مالک', 'SEND CODE TO OWNER EMAIL'))),
     ] else ...[
       const SizedBox(height: 12),
       TextField(controller: passwordController, obscureText: true, decoration: InputDecoration(labelText: t('گذرواژه (حداقل ۶ کاراکتر)', 'Password (6+ characters)'), border: const OutlineInputBorder())),
       const SizedBox(height: 14),
       FilledButton(onPressed: busy ? null : authenticate, child: Text(t('ثبت‌نام', 'CREATE ACCOUNT'))),
     ],
-    TextButton(onPressed: busy ? null : () => setState(() { signUp = !signUp; ownerCodeSent = false; error = null; }), child: Text(signUp ? t('قبلاً حساب دارم؛ ورود', 'I already have an account') : t('حساب ندارم؛ ثبت‌نام', 'Create a new account'))),
+    TextButton(onPressed: busy ? null : () => setState(() { signUp = !signUp; error = null; }), child: Text(signUp ? t('قبلاً حساب دارم؛ ورود', 'I already have an account') : t('حساب ندارم؛ ثبت‌نام', 'Create a new account'))),
   ]));
 
   Widget _accountCard() {
