@@ -74,8 +74,14 @@ jobs:
               )
               path.write_text(updated)
           PY
+      - name: Prepare CARACAL launcher icon
+        run: |
+          mkdir -p assets
+          cp ../assets/130315.png assets/130315.png
       - name: Install dependencies
         run: flutter pub get
+      - name: Generate application icons
+        run: dart run flutter_launcher_icons
       - name: Analyze
         run: flutter analyze --no-fatal-infos
       - name: Build release APK
