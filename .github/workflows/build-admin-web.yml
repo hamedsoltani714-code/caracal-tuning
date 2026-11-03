@@ -1,0 +1,30 @@
+name: Build CARACAL Admin Web
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "admin-web/**"
+      - ".github/workflows/build-admin-web.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: admin-web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: admin-web/package-lock.json
+      - name: Install dependencies
+        run: npm install
+      - name: Build admin dashboard
+        run: npm run build
