@@ -181,7 +181,7 @@ class _AdminHomeState extends State<AdminHome>{
   Future<void> editLesson({Map<String,dynamic>? existing})async{
     final l=<String,dynamic>{'id':existing?['id'], 'title_fa':existing?['title_fa']??existing?['title']??'','title_en':existing?['title_en']??'','summary_fa':existing?['summary_fa']??existing?['summary']??'','summary_en':existing?['summary_en']??'','body_fa':existing?['body_fa']??existing?['body']??'','body_en':existing?['body_en']??'','category':existing?['category']??'general','is_published':existing?['is_published']==true};
     final c=<String,TextEditingController>{for(final k in ['title_fa','title_en','summary_fa','summary_en','body_fa','body_en','category'])k:TextEditingController(text:l[k].toString())};
-    bool published=canPublish && l['is_published']==true;
+    bool published=canPublish && (existing==null || l['is_published']==true);
     String mediaUrl=(existing?['media_url']??'').toString();
     String mediaType=(existing?['media_type']??'none').toString();
     bool uploading=false;
