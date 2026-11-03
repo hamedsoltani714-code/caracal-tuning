@@ -6,13 +6,20 @@
 1. وارد پوشه `admin-web` شوید.
 2. فایل `.env.example` را به `.env.local` کپی کنید.
 3. مقدار `NEXT_PUBLIC_SUPABASE_URL` و کلید عمومی anon/publishable پروژه را قرار دهید.
-4. اجرا:
-   `npm install`
-   `npm run dev`
-5. آدرس محلی: `http://localhost:3000`
+4. اجرا: `npm install` و سپس `npm run dev`.
 
-## انتشار
-پوشه `admin-web` را به‌عنوان یک پروژه Next.js مستقل در Vercel یا سرویس سازگار با Next.js منتشر کنید. متغیرهای محیطی بالا را در تنظیمات پروژه وب وارد کنید.
+## انتشار روی Cloudflare Workers
+این پروژه با Next.js و آداپتور OpenNext برای Cloudflare Workers آماده شده است.
+
+- مخزن: `hamedsoltani714-code/caracal-tuning`
+- شاخه: `main`
+- Root directory: `admin-web`
+- Build command: `npm run build` فقط برای بررسی عادی Next.js است؛ انتشار Cloudflare با `npm run deploy` انجام می‌شود.
+- Deploy command: `npm run deploy`
+- متغیرهای محیطی را در تنظیمات Workers اضافه کنید: `NEXT_PUBLIC_SUPABASE_URL` و `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+
+برای انتشار از خط فرمان، پس از ورود به حساب Cloudflare اجرا کنید: `npm run deploy`.
+برای پیش‌نمایش محلی در محیط Workers: `npm run preview`.
 
 ## امکانات
 - ورود مالک و مدیر با گذرواژه یا کد یک‌بارمصرف ایمیل
@@ -26,4 +33,3 @@
 - فقط کلید عمومی Supabase در متغیرهای `NEXT_PUBLIC_*` قرار می‌گیرد؛ هرگز service-role key را وارد این پروژه نکنید.
 - دسترسی واقعی داده‌ها باید با RLS دیتابیس کنترل شود؛ مخفی‌کردن دکمه‌ها به‌تنهایی کنترل امنیتی نیست.
 - برای مدیریت مدیران، تابع `create-admin` باید با JWT فعال باشد و مالک را سمت سرور اعتبارسنجی کند.
-- آدرس عمومی وب و تنظیمات دامنه پس از انتشار توسط مالک تعیین می‌شود.
