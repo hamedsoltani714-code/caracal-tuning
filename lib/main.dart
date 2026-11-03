@@ -1414,7 +1414,7 @@ class _GarageScreenState extends State<GarageScreen> {
   }
 
   String _normalizedPhone(String raw) {
-    final phone = raw.trim().replaceAll(RegExp(r'[\\s\\-()]'), '');
+    final phone = raw.trim().replaceAll(RegExp(r'[\s\-()]'), '');
     if (!RegExp(r'^\\+[1-9]\\d{7,14}
     final email = emailController.text.trim();
     final password = passwordController.text;
