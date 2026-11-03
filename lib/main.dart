@@ -1603,7 +1603,7 @@ class _CaracalAdminScreenState extends State<CaracalAdminScreen> {
     if (address.isEmpty || !address.contains('@')) { setState(() => message = t('ایمیل معتبر وارد کن.', 'Enter a valid email.')); return; }
     setState(() { loading = true; message = null; });
     try {
-      final response =client.functions.invoke('rapid-responder', body: {'email': address, 'permissions': {'manage_content': manageContent, 'publish_content': publishContent, 'manage_users': manageUsers}});
+      final response = await client.functions.invoke('rapid-responder', body: {'email': address, 'permissions': {'manage_content': manageContent, 'publish_content': publishContent, 'manage_users': manageUsers}});
       if (response.status < 200 || response.status >= 300) throw Exception(response.data.toString());
       email.clear();
       if (mounted) setState(() => message = t('دعوت‌نامه مدیر ارسال شد.', 'Admin invitation sent.'));
