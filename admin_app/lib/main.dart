@@ -182,6 +182,8 @@ class _AdminHomeState extends State<AdminHome>{
     ...bookings.map((b)=>card(Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
       Text(b['customer_name']?.toString()??'مشتری',style:const TextStyle(fontWeight:FontWeight.bold,fontSize:16)),
       Text((b['vehicle']??'—').toString()+' • '+(b['service']??'—').toString(),style:const TextStyle(color:silver)),
+      if((b['branch_name']??'').toString().isNotEmpty)
+        Text('شعبه: ${b['branch_name']} • ${b['branch_address']??''}',style:const TextStyle(color:silver,fontSize:12)),
       Text((b['preferred_date']??'').toString()+' | '+(b['preferred_time']??'').toString()),
       Text('تماس: '+(b['phone']??'—').toString(),style:const TextStyle(color:silver,fontSize:12)),
       Wrap(spacing:5,children:[for(final e in {'pending':'در انتظار','confirmed':'تأیید','completed':'انجام شد','cancelled':'لغو'}.entries)OutlinedButton(onPressed:busy?null:()=>changeBooking(b,e.key),child:Text(e.value,style:const TextStyle(fontSize:10)))]),
