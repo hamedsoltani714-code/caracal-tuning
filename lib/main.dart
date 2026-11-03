@@ -482,7 +482,7 @@ class HomeScreen extends StatelessWidget {
           onNavigate: onNavigate,
         ),
         const SizedBox(height: 23),
-        Text(t('موضوعات منتخب', 'FEATURED TOPICS')        Text(t('موضوعات منتخب', 'FEATURED TOPICS'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: .8)),
+        Text(t('موضوعات منتخب', 'FEATURED TOPICS'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: .8)),
         const SizedBox(height: 11),
         FeatureTile(icon: Icons.settings_input_component, title: t('اصول عملکرد موتور', 'Engine Fundamentals'),
           subtitle: t('آشنایی با پارامترهای اصلی موتور', 'Understanding core engine parameters'),
