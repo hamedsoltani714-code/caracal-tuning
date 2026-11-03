@@ -7,206 +7,155 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const OWNER_EMAIL = "hamed.soltani714@gmail.com";
-
-const allowedPermissions = [
-  "manage_content",
-  "publish_content",
-  "manage_users",
-  "manage_bookings",
-];
-
-function response(
-  status: number,
-  data: Record<string, unknown>,
-) {
-  return new Response(JSON.stringify(data), {
+const json = (data: unknown, status = 200) =>
+  new Response(JSON.stringify(data), {
     status,
-    headers: {
-      ...corsHeaders,
-      "Content-Type": "application/json",
-    },
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
-}
 
-Deno.serve(async (req: Request) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   if (req.method !== "POST") {
-    return response(405, {
-      success: false,
-      error: "Method not allowed",
-    });
+    return json({ success: false, error: "Method not allowed" }, 405);
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!supabaseUrl || !anonKey || !serviceRoleKey) {
-      return response(500, {
-        success: false,
-        error: "Server configuration is incomplete",
-      });
+    if (!supabaseUrl || !anonKey || !serviceKey) {
+      throw new Error("Supabase environment variables are missing.");
     }
 
-    const authorization = req.headers.get("Authorization");
+    const authHeader = req.headers.get("Authorization");
 
-    if (!authorization?.startsWith("Bearer ")) {
-      return response(401, {
-        success: false,
-        error: "Authentication required",
-      });
+    if (!authHeader?.startsWith("Bearer ")) {
+      return json({ success: false, error: "Unauthorized" }, 401);
     }
 
-    const token = authorization.substring(7).trim();
+    const token = authHeader.replace("Bearer ", "");
 
-    if (!token) {
-      return response(401, {
-        success: false,
-        error: "Invalid access token",
-      });
+    const authClient = createClient(supabaseUrl, anonKey);
+
+    const { data: authData, error: authError } =
+      await authClient.auth.getUser(token);
+
+    if (authError || !authData.user) {
+      return json({ success: false, error: "Invalid session" }, 401);
     }
 
-    // Verify the caller using their access token.
-    const authClient = createClient(supabaseUrl, anonKey, {
+    const adminClient = createClient(supabaseUrl, serviceKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
       },
     });
 
-    const {
-      data: { user: caller },
-      error: authError,
-    } = await authClient.auth.getUser(token);
+    const ownerId = authData.user.id;
 
-    if (authError || !caller) {
-      return response(401, {
-        success: false,
-        error: "Invalid or expired session",
-      });
-    }
-
-    // Service-role client is used only inside this server function.
-    const adminClient = createClient(
-      supabaseUrl,
-      serviceRoleKey,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      },
-    );
-
-    // Only the owner account can create administrators.
     const { data: ownerProfile, error: ownerError } =
       await adminClient
         .from("profiles")
         .select("role")
-        .eq("id", caller.id)
+        .eq("id", ownerId)
         .maybeSingle();
 
     if (
       ownerError ||
       ownerProfile?.role !== "owner" ||
-      caller.email?.toLowerCase() !== OWNER_EMAIL
+      authData.user.email?.toLowerCase() !==
+        "hamed.soltani714@gmail.com"
     ) {
-      return response(403, {
+      return json({
         success: false,
-        error: "Only the project owner can create administrators",
-      });
+        error: "Only the verified owner can create administrators.",
+      }, 403);
     }
 
     const body = await req.json();
 
-    const email =
-      typeof body.email === "string"
-        ? body.email.trim().toLowerCase()
-        : "";
+    const email = String(body.email || "").trim().toLowerCase();
 
-    if (
-      !email ||
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-    ) {
-      return response(400, {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return json({ success: false, error: "Invalid email address." }, 400);
+    }
+
+    if (email === "hamed.soltani714@gmail.com") {
+      return json({
         success: false,
-        error: "A valid email address is required",
+        error: "Owner account cannot be changed.",
+      }, 400);
+    }
+
+    const requested = body.permissions || {};
+
+    const permissions = {
+      manage_content: requested.manage_content === true,
+      publish_content: requested.publish_content === true,
+      manage_users: requested.manage_users === true,
+      manage_bookings: requested.manage_bookings === true,
+    };
+
+    let targetUser = null;
+
+    for (let page = 1; page <= 20; page++) {
+      const { data, error } = await adminClient.auth.admin.listUsers({
+        page,
+        perPage: 1000,
       });
+
+      if (error) throw error;
+
+      targetUser = data.users.find(
+        (user) => user.email?.toLowerCase() === email
+      ) ?? null;
+
+      if (targetUser || data.users.length < 1000) break;
     }
 
-    if (email === OWNER_EMAIL) {
-      return response(400, {
-        success: false,
-        error: "The owner account cannot be changed into an administrator",
-      });
+    if (!targetUser) {
+      const { data, error } =
+        await adminClient.auth.admin.inviteUserByEmail(email);
+
+      if (error) throw error;
+
+      targetUser = data.user;
     }
 
-    // Accept only known permission names and boolean values.
-    const requestedPermissions =
-      body.permissions &&
-      typeof body.permissions === "object" &&
-      !Array.isArray(body.permissions)
-        ? body.permissions
-        : {};
-
-    const permissions: Record<string, boolean> = {};
-
-    for (const key of allowedPermissions) {
-      permissions[key] = requestedPermissions[key] === true;
+    if (!targetUser) {
+      throw new Error("Could not create or find the invited user.");
     }
 
-    // Send the Supabase invitation.
-    const { data: invitation, error: inviteError } =
-      await adminClient.auth.admin.inviteUserByEmail(email);
-
-    if (inviteError || !invitation.user) {
-      return response(400, {
-        success: false,
-        error: inviteError?.message ?? "Could not send invitation",
-      });
-    }
-
-    // The database trigger creates the initial profile.
-    // Upsert ensures the invited user receives the admin role.
     const { error: profileError } = await adminClient
       .from("profiles")
-      .upsert(
-        {
-          id: invitation.user.id,
-          email,
-          role: "admin",
-          permissions,
-        },
-        {
-          onConflict: "id",
-        },
-      );
+      .upsert({
+        id: targetUser.id,
+        email,
+        role: "admin",
+        permissions,
+      }, { onConflict: "id" });
 
-    if (profileError) {
-      return response(500, {
-        success: false,
-        error: "Invitation sent, but administrator profile setup failed",
-        details: profileError.message,
-      });
-    }
+    if (profileError) throw profileError;
 
-    return response(200, {
+    return json({
       success: true,
-      message: "Administrator invitation sent successfully",
+      message: "Administrator created successfully.",
       email,
       permissions,
     });
+
   } catch (error) {
-    return response(500, {
+    console.error("create-admin error:", error);
+
+    return json({
       success: false,
       error: error instanceof Error
         ? error.message
-        : "Unexpected server error",
-    });
+        : "Unexpected server error.",
+    }, 500);
   }
 });
