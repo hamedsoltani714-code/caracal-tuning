@@ -72,8 +72,7 @@ jobs:
         run: dart run flutter_launcher_icons
 
       - name: Analyze Flutter project
-        run: flutter analyze
-        continue-on-error: true
+        run: flutter analyze --no-fatal-infos
 
       - name: Build Release APK
         env:
