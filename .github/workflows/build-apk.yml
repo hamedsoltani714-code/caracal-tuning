@@ -6,6 +6,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build Android APK
@@ -27,13 +30,13 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Create Android project files
+      - name: Create Android project
         run: |
           if [ ! -d android ]; then
-            flutter create --platforms=android .
+            flutter create --project-name caracal_tuning --platforms=android .
           fi
 
-      - name: Set Android compile SDK 36
+      - name: Configure Android SDK
         run: |
           if [ -f android/app/build.gradle.kts ]; then
             sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/' android/app/build.gradle.kts
@@ -44,13 +47,14 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Fix file_picker compile SDK
+      - name: Configure file_picker
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re
 
           root = Path.home() / ".pub-cache" / "hosted" / "pub.dev"
+
           files = list(root.glob("file_picker-*/android/**/*.gradle"))
           files += list(root.glob("file_picker-*/android/**/*.gradle.kts"))
 
@@ -64,14 +68,11 @@ jobs:
               path.write_text(updated)
           PY
 
-      - name: Generate app icons
-        run: |
-          mkdir -p assets/images
-          cp assets/130315.png assets/images/130315.png
-          dart run flutter_launcher_icons
+      - name: Generate application icons
+        run: dart run flutter_launcher_icons
 
-      - name: Analyze Flutter code
-        run: flutter analyze --no-pub
+      - name: Analyze Flutter project
+        run: flutter analyze
         continue-on-error: true
 
       - name: Build Release APK
