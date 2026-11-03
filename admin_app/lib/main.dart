@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 const url = String.fromEnvironment('SUPABASE_URL', defaultValue: 'https://fabbzaviesndfobxhrxf.supabase.co');
@@ -181,10 +182,45 @@ class _AdminHomeState extends State<AdminHome>{
     final l=<String,dynamic>{'id':existing?['id'], 'title_fa':existing?['title_fa']??existing?['title']??'','title_en':existing?['title_en']??'','summary_fa':existing?['summary_fa']??existing?['summary']??'','summary_en':existing?['summary_en']??'','body_fa':existing?['body_fa']??existing?['body']??'','body_en':existing?['body_en']??'','category':existing?['category']??'general','is_published':existing?['is_published']==true};
     final c=<String,TextEditingController>{for(final k in ['title_fa','title_en','summary_fa','summary_en','body_fa','body_en','category'])k:TextEditingController(text:l[k].toString())};
     bool published=canPublish && l['is_published']==true;
+    String mediaUrl=(existing?['media_url']??'').toString();
+    String mediaType=(existing?['media_type']??'none').toString();
+    bool uploading=false;
+    Future<void> pickMedia(StateSetter setDialog) async {
+      try {
+        final result=await FilePicker.platform.pickFiles(type:FileType.any,withData:true);
+        if(result==null || result.files.isEmpty)return;
+        final file=result.files.single;
+        final bytes=file.bytes;
+        if(bytes==null || bytes.isEmpty)throw Exception('خواندن فایل انتخاب‌شده ممکن نشد.');
+        if(bytes.length>50*1024*1024)throw Exception('حداکثر حجم فایل ۵۰ مگابایت است.');
+        final ext=(file.extension??'').toLowerCase();
+        final type=['jpg','jpeg','png','webp','gif'].contains(ext)?'image':
+          ['mp4','mov','webm','m4v'].contains(ext)?'video':'document';
+        final safeName=file.name.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'),'_');
+        final path='lessons/${DateTime.now().millisecondsSinceEpoch}_$safeName';
+        setDialog(()=>uploading=true);
+        final contentType=type=='image'?(ext=='jpg'?'image/jpeg':'image/$ext'):
+          type=='video'?'video/$ext':'application/octet-stream';
+        await db.storage.from('caracal-media').uploadBinary(path,bytes,
+          fileOptions:FileOptions(contentType:contentType,upsert:false));
+        mediaUrl=db.storage.from('caracal-media').getPublicUrl(path);
+        mediaType=type;
+        setDialog((){});
+      }catch(e){
+        if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('بارگذاری ناموفق: $e')));
+      }finally{setDialog(()=>uploading=false);}
+    }
     await showDialog(context:context,builder:(ctx)=>StatefulBuilder(builder:(ctx,setDialog)=>AlertDialog(backgroundColor:panel,title:Text(existing==null?'آموزش جدید':'ویرایش آموزش'),content:SizedBox(width:480,child:SingleChildScrollView(child:Column(children:[
       for(final e in {'title_fa':'عنوان فارسی','title_en':'عنوان انگلیسی','summary_fa':'خلاصه فارسی','summary_en':'خلاصه انگلیسی','body_fa':'متن فارسی','body_en':'متن انگلیسی','category':'دسته‌بندی'}.entries)Padding(padding:const EdgeInsets.only(bottom:8),child:TextField(controller:c[e.key],maxLines:e.key.startsWith('body')?4:1,decoration:InputDecoration(labelText:e.value))),
       SwitchListTile(value:published,onChanged:canPublish?(v)=>setDialog(()=>published=v):null,title:const Text('انتشار مطلب'),subtitle:canPublish?null:const Text('انتشار فقط با مجوز مالک امکان‌پذیر است.')), 
-    ]))),actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('انصراف')),FilledButton(onPressed:busy?null:()async{for(final k in c.keys){l[k]=c[k]!.text.trim();}l['is_published']=published;Navigator.pop(ctx);await saveLesson(l);},child:const Text('ذخیره'))])));
+      const SizedBox(height:10),
+      Align(alignment:Alignment.centerRight,child:Text('رسانه آموزشی',style:TextStyle(color:silver,fontWeight:FontWeight.bold))),
+      if(mediaUrl.isNotEmpty)SelectableText(mediaUrl,style:const TextStyle(fontSize:10,color:silver)),
+      Row(children:[
+        Expanded(child:OutlinedButton.icon(onPressed:uploading?null:()=>pickMedia(setDialog),icon:uploading?const SizedBox(width:16,height:16,child:CircularProgressIndicator(strokeWidth:2)):const Icon(Icons.upload_file),label:Text(uploading?'در حال بارگذاری…':'انتخاب و بارگذاری فایل'))),
+        if(mediaUrl.isNotEmpty)IconButton(tooltip:'حذف پیوند رسانه',onPressed:()=>setDialog(()=>{mediaUrl='';mediaType='none';}),icon:const Icon(Icons.delete_outline,color:red)),
+      ]),
+    ]))),actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('انصراف')),FilledButton(onPressed:busy?null:()async{for(final k in c.keys){l[k]=c[k]!.text.trim();}l['is_published']=published;l['media_url']=mediaUrl;l['media_type']=mediaType;Navigator.pop(ctx);await saveLesson(l);},child:const Text('ذخیره'))])));
     for(final x in c.values){x.dispose();}
   }
   Widget usersPage()=>ListView(padding:const EdgeInsets.all(14),children:[
