@@ -9,13 +9,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:video_player/video_player.dart';
 import 'booking_admin_screens.dart';
 
-// Public Supabase project configuration. This is the publishable/anon key,
-// never a service_role key. Defaults keep local and CI builds connected even
-// when no --dart-define values are supplied.
-const String supabaseUrl = String.fromEnvironment(
+// Public Supabase project configuration. Never place a service_role key in the app.
+final String supabaseUrl = String.fromEnvironment(
   'SUPABASE_URL',
   defaultValue: 'https://fabbzaviesndfobxhrxf.supabase.co',
-).trim().replaceAll(RegExp(r'/+
+).trim().replaceAll(RegExp(r'/+$'), '');
+
+final String supabaseAnonKey = String.fromEnvironment(
+  'SUPABASE_ANON_KEY',
+  defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZhYmJ6YXZpZXNuZGZvYnhocnhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1MzEyNjcsImV4cCI6MjEwOTEwNzI2N30.mwJfaLmV0dKso2dsXxX3gr2naFYqFEFtGi6Nw731RNk',
+).trim();
 
 bool supabaseConfigured = false;
 
