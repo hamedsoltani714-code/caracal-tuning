@@ -69,6 +69,7 @@ class _CaracalAppState extends State<CaracalApp> {
   bool introSound = true;
   int tab = 0;
   bool ready = false;
+  bool settingsLoaded = false;
 
   @override
   void initState() {
@@ -89,6 +90,7 @@ class _CaracalAppState extends State<CaracalApp> {
       redline = p.getBool('redline') ?? true;
       haptics = p.getBool('haptics') ?? true;
       introSound = p.getBool('introSound') ?? true;
+      settingsLoaded = true;
     });
   }
 
@@ -133,7 +135,9 @@ class _CaracalAppState extends State<CaracalApp> {
         ),
         useMaterial3: true,
       ),
-      home: ready
+      home: !settingsLoaded
+          ? const Scaffold(backgroundColor: Colors.black)
+          : ready
           ? Directionality(
               textDirection:
                   english ? TextDirection.ltr : TextDirection.rtl,
@@ -228,6 +232,7 @@ class _IntroScreenState extends State<IntroScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.soundEnabled) unawaited(_playIntroAudio());
     _initializeVideo();
   }
 
@@ -246,9 +251,6 @@ class _IntroScreenState extends State<IntroScreen> {
       await controller.setVolume(0.0);
       controller.addListener(_videoListener);
       await controller.play();
-      if (widget.soundEnabled) {
-        unawaited(_playIntroAudio());
-      }
       setState(() {});
       // Safety fallback for devices/codecs that fail to report completion.
       final duration = controller.value.duration;
@@ -265,10 +267,10 @@ class _IntroScreenState extends State<IntroScreen> {
     try {
       await _roarPlayer.setReleaseMode(ReleaseMode.stop);
       await _enginePlayer.setReleaseMode(ReleaseMode.stop);
-      await _roarPlayer.play(AssetSource('Caracal (1).mp3'));
+      await _roarPlayer.play(AssetSource('Caracal (1).mp3', prefix: ''));
       await Future<void>.delayed(const Duration(milliseconds: 650));
       if (!_finished && mounted) {
-        await _enginePlayer.play(AssetSource('Pagani-Zonda (2).mp3'));
+        await _enginePlayer.play(AssetSource('Pagani-Zonda (2).mp3', prefix: ''));
       }
     } catch (e) {
       debugPrint('CARACAL intro audio failed: $e');
@@ -1293,7 +1295,7 @@ class _LearnScreenState extends State<LearnScreen> {
     try {
       final rows = await Supabase.instance.client
           .from('lessons')
-          .select('id,title,title_en,summary,summary_en,body,body_en,category,media_url,media_type,created_at')
+          .select('id,title,title_fa,title_en,summary,summary_fa,summary_en,body,body_fa,body_en,category,media_url,media_type,created_at')
           .eq('is_published', true)
           .order('created_at', ascending: false);
       if (!mounted) return;
@@ -1306,19 +1308,19 @@ class _LearnScreenState extends State<LearnScreen> {
   }
 
   void openOnlineLesson(Map<String, dynamic> lesson) {
-    final title = (english ? lesson['title_en'] : lesson['title'])?.toString();
-    final body = (english ? lesson['body_en'] : lesson['body'])?.toString();
+    final title = (english ? lesson['title_en'] : lesson['title_fa'] ?? lesson['title'])?.toString();
+    final body = (english ? lesson['body_en'] : lesson['body_fa'] ?? lesson['body'])?.toString();
     final mediaUrl = lesson['media_url']?.toString();
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: panel,
-        title: Text((title?.isNotEmpty == true ? title : lesson['title']?.toString()) ?? ''),
+        title: Text((title?.isNotEmpty == true ? title : lesson['title_fa']?.toString() ?? lesson['title']?.toString()) ?? ''),
         content: SingleChildScrollView(child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text((english ? lesson['summary_en'] : lesson['summary'])?.toString() ?? '', style: const TextStyle(color: silver)),
+            Text((english ? lesson['summary_en'] : lesson['summary_fa'] ?? lesson['summary'])?.toString() ?? '', style: const TextStyle(color: silver)),
             const SizedBox(height: 12),
             Text(body?.isNotEmpty == true ? body! : (lesson['body']?.toString() ?? '')),
             if (mediaUrl != null && mediaUrl.isNotEmpty) ...[
@@ -1497,12 +1499,19 @@ class _GarageScreenState extends State<GarageScreen> {
   Future<void> loadAccount() async {
     final user = client.auth.currentUser;
     if (user == null) return;
-    final p = await client.from('profiles').select().eq('id', user.id).maybeSingle();
-    final v = await client.from('vehicles').select().eq('user_id', user.id).order('created_at', ascending: false);
+    final p = await client.from('profiles').select('id,email,role,permissions,created_at').eq('id', user.id).maybeSingle();
+    // A garage request must never invalidate a successful authentication.
+    List<Map<String, dynamic>> loadedVehicles = [];
+    try {
+      final v = await client.from('vehicles').select('id,user_id,name,created_at').eq('user_id', user.id).order('created_at', ascending: false);
+      loadedVehicles = List<Map<String, dynamic>>.from(v);
+    } catch (e) {
+      debugPrint('CARACAL garage load warning: $e');
+    }
     if (!mounted) return;
     setState(() {
-      profile = p;
-      vehicles = List<Map<String, dynamic>>.from(v);
+      profile = p ?? {'id': user.id, 'email': user.email, 'role': 'user', 'permissions': <String, dynamic>{}};
+      vehicles = loadedVehicles;
     });
   }
 
@@ -1622,7 +1631,7 @@ class _CaracalAdminScreenState extends State<CaracalAdminScreen> {
         users = List<Map<String, dynamic>>.from(rows);
       }
       if (canManageContent) {
-        final content = await client.from('lessons').select('id,title,title_en,summary,body,body_en,category,is_published,media_url,media_type,created_at').order('created_at', ascending: false);
+        final content = await client.from('lessons').select('id,title,title_fa,title_en,summary,summary_fa,summary_en,body,body_fa,body_en,category,is_published,media_url,media_type,created_at').order('created_at', ascending: false);
         lessons = List<Map<String, dynamic>>.from(content);
       }
       if (mounted) setState(() => loading = false);
@@ -1653,11 +1662,11 @@ class _CaracalAdminScreenState extends State<CaracalAdminScreen> {
   }
 
   Future<void> openLessonEditor({Map<String, dynamic>? lesson}) async {
-    final title = TextEditingController(text: lesson?['title']?.toString() ?? '');
+    final title = TextEditingController(text: lesson?['title_fa']?.toString() ?? lesson?['title']?.toString() ?? '');
     final titleEn = TextEditingController(text: lesson?['title_en']?.toString() ?? '');
-    final summary = TextEditingController(text: lesson?['summary']?.toString() ?? '');
+    final summary = TextEditingController(text: lesson?['summary_fa']?.toString() ?? lesson?['summary']?.toString() ?? '');
     final summaryEn = TextEditingController(text: lesson?['summary_en']?.toString() ?? '');
-    final body = TextEditingController(text: lesson?['body']?.toString() ?? '');
+    final body = TextEditingController(text: lesson?['body_fa']?.toString() ?? lesson?['body']?.toString() ?? '');
     final bodyEn = TextEditingController(text: lesson?['body_en']?.toString() ?? '');
     final category = TextEditingController(text: lesson?['category']?.toString() ?? 'general');
     String mediaType = lesson?['media_type']?.toString() ?? 'none';
@@ -1725,9 +1734,9 @@ class _CaracalAdminScreenState extends State<CaracalAdminScreen> {
               if (published && !canPublishContent) return;
               try {
                 final values = {
-                  'title': title.text.trim(), 'title_en': titleEn.text.trim(),
-                  'summary': summary.text.trim(), 'summary_en': summaryEn.text.trim(),
-                  'body': body.text.trim(), 'body_en': bodyEn.text.trim(),
+                  'title': title.text.trim(), 'title_fa': title.text.trim(), 'title_en': titleEn.text.trim(),
+                  'summary': summary.text.trim(), 'summary_fa': summary.text.trim(), 'summary_en': summaryEn.text.trim(),
+                  'body': body.text.trim(), 'body_fa': body.text.trim(), 'body_en': bodyEn.text.trim(),
                   'category': category.text.trim().isEmpty ? 'general' : category.text.trim(),
                   'media_url': mediaUrl, 'media_type': mediaType,
                   'is_published': published,
