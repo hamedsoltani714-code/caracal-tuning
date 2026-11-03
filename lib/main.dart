@@ -1155,6 +1155,64 @@ String _lessonEnglish(String title, int index) {
   return (data[title] ?? ['This lesson will be expanded soon.'])[index];
 }
 
+class NotificationCenterDialog extends StatelessWidget {
+  final bool english;
+  const NotificationCenterDialog({super.key, required this.english});
+
+  Future<List<Map<String, dynamic>>> load() async {
+    if (!supabaseConfigured) return [];
+    final rows = await Supabase.instance.client
+        .from('app_notifications')
+        .select('id,title_fa,title_en,body_fa,body_en,created_at')
+        .eq('is_published', true)
+        .order('created_at', ascending: false)
+        .limit(50);
+    return List<Map<String, dynamic>>.from(rows);
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    backgroundColor: panel,
+    title: Text(english ? 'Notification Center' : 'مرکز اعلان‌ها'),
+    content: SizedBox(
+      width: 420,
+      child: FutureBuilder<List<Map<String, dynamic>>>(
+        future: load(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const SizedBox(height: 90, child: Center(child: CircularProgressIndicator(color: red)));
+          }
+          if (snapshot.hasError) {
+            return Text(english ? 'Could not load announcements.' : 'بارگذاری اعلان‌ها انجام نشد.');
+          }
+          final rows = snapshot.data ?? [];
+          if (rows.isEmpty) {
+            return Text(english ? 'No announcements yet.' : 'فعلاً اعلان منتشرشده‌ای وجود ندارد.');
+          }
+          return ListView(
+            shrinkWrap: true,
+            children: rows.map((row) {
+              final title = (english ? row['title_en'] : row['title_fa'])?.toString();
+              final body = (english ? row['body_en'] : row['body_fa'])?.toString();
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: panel, borderRadius: BorderRadius.circular(12)),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(title?.isNotEmpty == true ? title! : (row['title_fa']?.toString() ?? ''), style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  Text(body?.isNotEmpty == true ? body! : (row['body_fa']?.toString() ?? ''), style: const TextStyle(color: silver, height: 1.5)),
+                ]),
+              );
+            }).toList(),
+          );
+        },
+      ),
+    ),
+    actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(english ? 'Close' : 'بستن'))],
+  );
+}
+
 // LEARN
 
 class LearnScreen extends StatefulWidget {
