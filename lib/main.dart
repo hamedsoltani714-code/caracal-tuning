@@ -472,21 +472,17 @@ class HomeScreen extends StatelessWidget {
         ),
         const SizedBox(height: 24),
         Row(children: [
-          Expanded(child: Text(t('دسترسی سریع', 'QUICK ACCESS'),
+          Expanded(child: Text(t('منظومه کاراکال', 'CARACAL SOLAR SYSTEM'),
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: .8))),
-          const Icon(Icons.grid_view_rounded, color: red, size: 18),
+          const Icon(Icons.hub_rounded, color: red, size: 20),
         ]),
-        const SizedBox(height: 12),
-        GridView.count(crossAxisCount: 2, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 10, crossAxisSpacing: 10, childAspectRatio: compact ? 1.48 : 1.58,
-          children: [
-            QuickCard(icon: Icons.school_rounded, title: t('آموزش تخصصی', 'Technical Learning'), subtitle: t('دانش فنی خودرو', 'Automotive knowledge'), onTap: () => onNavigate(1)),
-            QuickCard(icon: Icons.memory_rounded, title: t('ریمپ و ECU', 'ECU & Remap'), subtitle: t('مفاهیم و آموزش', 'Concepts & tutorials'), onTap: () => onNavigate(1)),
-            QuickCard(icon: Icons.car_repair_rounded, title: t('گاراژ من', 'My Garage'), subtitle: t('خودروهای من', 'My vehicles'), onTap: () => onNavigate(2)),
-            QuickCard(icon: Icons.calendar_month_rounded, title: t('نوبت‌دهی', 'Booking'), subtitle: t('مراکز کاراکال', 'Caracal branches'), onTap: () => onNavigate(3)),
-          ]),
+        const SizedBox(height: 10),
+        OrbitalMainMenu(
+          english: english,
+          onNavigate: onNavigate,
+        ),
         const SizedBox(height: 23),
-        Text(t('موضوعات منتخب', 'FEATURED TOPICS'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: .8)),
+        Text(t('موضوعات منتخب', 'FEATURED TOPICS')        Text(t('موضوعات منتخب', 'FEATURED TOPICS'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: .8)),
         const SizedBox(height: 11),
         FeatureTile(icon: Icons.settings_input_component, title: t('اصول عملکرد موتور', 'Engine Fundamentals'),
           subtitle: t('آشنایی با پارامترهای اصلی موتور', 'Understanding core engine parameters'),
@@ -1563,6 +1559,110 @@ class OnlineLessonDetailScreen extends StatelessWidget {
       ]),
     );
   }
+}
+
+// ORBITAL MAIN MENU — interactive planets around the CARACAL core.
+class OrbitalMainMenu extends StatelessWidget {
+  final bool english;
+  final ValueChanged<int> onNavigate;
+  const OrbitalMainMenu({super.key, required this.english, required this.onNavigate});
+
+  @override
+  Widget build(BuildContext context) {
+    final items = <_OrbitItem>[
+      _OrbitItem(english ? 'LEARN' : 'آموزش', Icons.school_rounded, 1, const Offset(0, -112)),
+      _OrbitItem(english ? 'ECU' : 'ریمپ و ECU', Icons.memory_rounded, 1, const Offset(105, -55)),
+      _OrbitItem(english ? 'GARAGE' : 'گاراژ', Icons.directions_car_rounded, 2, const Offset(105, 65)),
+      _OrbitItem(english ? 'BOOKING' : 'نوبت‌دهی', Icons.calendar_month_rounded, 3, const Offset(0, 120)),
+      _OrbitItem(english ? 'PROFILE' : 'حساب کاربری', Icons.person_rounded, 2, const Offset(-105, 65)),
+      _OrbitItem(english ? 'SETTINGS' : 'تنظیمات', Icons.tune_rounded, 4, const Offset(-105, -55)),
+    ];
+    return SizedBox(
+      height: 300,
+      child: LayoutBuilder(builder: (context, box) {
+        final center = Offset(box.maxWidth / 2, 150);
+        return Stack(children: [
+          Positioned.fill(
+            child: CustomPaint(painter: _OrbitPainter()),
+          ),
+          Positioned(
+            left: center.dx - 48, top: center.dy - 48,
+            child: Container(
+              width: 96, height: 96,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const RadialGradient(colors: [Color(0xFF515963), Color(0xFF171A1F), Color(0xFF08090B)]),
+                border: Border.all(color: silver.withOpacity(.8), width: 1.5),
+                boxShadow: [BoxShadow(color: red.withOpacity(.22), blurRadius: 25, spreadRadius: 2)],
+              ),
+              padding: const EdgeInsets.all(17),
+              child: Image.asset('assets/130315.png', fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Icon(Icons.pets, color: silver, size: 45)),
+            ),
+          ),
+          for (final item in items)
+            Positioned(
+              left: center.dx + item.offset.dx - 36,
+              top: center.dy + item.offset.dy - 36,
+              child: Semantics(
+                button: true,
+                label: item.label,
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: () => onNavigate(item.tab),
+                  child: Container(
+                    width: 72, height: 72,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
+                        colors: [Color(0xFF454C55), Color(0xFF171A1F), Color(0xFF090A0C)]),
+                      border: Border.all(color: const Color(0xFF929BA5), width: 1.1),
+                      boxShadow: const [BoxShadow(color: Colors.black87, blurRadius: 12, offset: Offset(0, 5))],
+                    ),
+                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Icon(item.icon, color: item.tab == 1 ? red : silver, size: 23),
+                      const SizedBox(height: 4),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 3),
+                        child: Text(item.label, maxLines: 1, overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Colors.white)),
+                      ),
+                    ]),
+                  ),
+                ),
+              ),
+            ),
+        ]);
+      }),
+    );
+  }
+}
+
+class _OrbitItem {
+  final String label;
+  final IconData icon;
+  final int tab;
+  final Offset offset;
+  const _OrbitItem(this.label, this.icon, this.tab, this.offset);
+}
+
+class _OrbitPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, 150);
+    final p = Paint()..style = PaintingStyle.stroke..strokeWidth = 1
+      ..color = const Color(0x667E8995);
+    canvas.drawCircle(center, 78, p);
+    p..color = const Color(0x447E8995)..strokeWidth = 1.2;
+    canvas.drawOval(Rect.fromCenter(center: center, width: 270, height: 220), p);
+    p..color = const Color(0x22FF3038)..strokeWidth = 1;
+    canvas.drawOval(Rect.fromCenter(center: center, width: 300, height: 265), p);
+    final glow = Paint()..color = const Color(0x44FF3038)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 16);
+    canvas.drawCircle(center, 5, glow);
+  }
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 // GARAGE / ACCOUNT / ADMIN
