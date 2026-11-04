@@ -1297,7 +1297,7 @@ class _LearnScreenState extends State<LearnScreen> {
   bool get english => widget.english;
   String t(String fa, String en) => english ? en : fa;
 
-  final List<Map<String, dynamic>> modules = [
+  final List<Map<String, dynamic>> fallbackModules = [
     {'icon': Icons.school_rounded, 'fa':'آموزش تخصصی خودرو','en':'Automotive Technical Education','descFa':'مسیرهای آموزشی از مبانی تا مباحث حرفه‌ای خودرو.','descEn':'Structured learning paths from fundamentals to advanced automotive topics.','group':'learn'},
     {'icon': Icons.directions_car_filled, 'fa':'بانک اطلاعات فنی خودرو','en':'Vehicle Technical Database','descFa':'مشخصات فنی، سیستم‌ها و اطلاعات کاربردی خودروها.','descEn':'Vehicle specifications, systems and technical references.','group':'reference'},
     {'icon': Icons.warning_amber_rounded, 'fa':'بانک کدهای خطای DTC','en':'DTC Error Code Database','descFa':'جست‌وجو و شناخت کدهای خطا و مفهوم آن‌ها.','descEn':'Search diagnostic trouble codes and understand their meaning.','group':'diagnosis'},
@@ -1314,17 +1314,54 @@ class _LearnScreenState extends State<LearnScreen> {
     {'icon': Icons.smart_toy, 'fa':'دستیار هوشمند عیب‌یابی','en':'AI Diagnostic Assistant','descFa':'راهنمای مرحله‌ای تحلیل علائم و اطلاعات عیب‌یابی.','descEn':'Step-by-step assistance for interpreting symptoms and diagnostic data.','group':'tools'},
     {'icon': Icons.quiz, 'fa':'آزمون‌ها و سنجش تخصصی','en':'Professional Quizzes & Exams','descFa':'آزمون‌های آموزشی برای سنجش دانش فنی.','descEn':'Knowledge checks and technical learning assessments.','group':'learn'},
   ];
+  List<Map<String, dynamic>> modules = [];
 
   @override
   void initState() {
     super.initState();
+    modules = fallbackModules;
     loadOnlineLessons();
+    loadOnlineModules();
   }
 
   @override
   void dispose() {
     _search.dispose();
     super.dispose();
+  }
+
+  IconData _moduleIcon(String? key) {
+    const icons = <String, IconData>{
+      'school': Icons.school_rounded, 'directions_car': Icons.directions_car_filled,
+      'warning': Icons.warning_amber_rounded, 'memory': Icons.memory,
+      'account_tree': Icons.account_tree, 'electrical': Icons.electrical_services,
+      'settings': Icons.settings, 'bolt': Icons.bolt, 'tune': Icons.tune,
+      'settings_applications': Icons.settings_applications, 'sensors': Icons.sensors,
+      'menu_book': Icons.menu_book, 'calculate': Icons.calculate,
+      'smart_toy': Icons.smart_toy, 'quiz': Icons.quiz,
+    };
+    return icons[key] ?? Icons.auto_stories;
+  }
+
+  Future<void> loadOnlineModules() async {
+    if (!supabaseConfigured) return;
+    try {
+      final rows = await Supabase.instance.client
+          .from('learning_modules')
+          .select('title_fa,title_en,description_fa,description_en,category,icon_key,sort_order')
+          .eq('is_published', true)
+          .order('sort_order');
+      if (!mounted) return;
+      setState(() {
+        modules = List<Map<String, dynamic>>.from(rows).map((row) => <String, dynamic>{
+          'fa': row['title_fa'] ?? '', 'en': row['title_en'] ?? '',
+          'descFa': row['description_fa'] ?? '', 'descEn': row['description_en'] ?? '',
+          'group': row['category'] ?? 'learn', 'icon': _moduleIcon(row['icon_key']),
+        }).toList();
+      });
+    } catch (_) {
+      if (mounted) setState(() => modules = fallbackModules);
+    }
   }
 
   Future<void> loadOnlineLessons() async {
@@ -1367,7 +1404,7 @@ class _LearnScreenState extends State<LearnScreen> {
 
     return RefreshIndicator(
       color: red,
-      onRefresh: loadOnlineLessons,
+      onRefresh: () async { await loadOnlineLessons(); await loadOnlineModules(); },
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
@@ -1375,11 +1412,11 @@ class _LearnScreenState extends State<LearnScreen> {
           Row(children: [
             Expanded(child: Text(t('مرکز دانش کاراکال','CARACAL KNOWLEDGE HUB'),
               style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w900, letterSpacing: .3))),
-            IconButton(tooltip: t('تازه‌سازی','Refresh'), onPressed: loadOnlineLessons,
+            IconButton(tooltip: t('تازه‌سازی','Refresh'), onPressed: () async { await loadOnlineLessons(); await loadOnlineModules(); },
               icon: const Icon(Icons.refresh, color: silver)),
           ]),
           const SizedBox(height: 5),
-          Text(t('۱۵ بخش تخصصی؛ هر بخش با صفحه و جست‌وجوی مستقل','15 specialist modules, each with its own detail page and discovery'),
+          Text(t('${modules.length} بخش تخصصی؛ عنوان و توضیحات از پنل مدیریت کنترل می‌شود','${modules.length} specialist modules managed from the admin panel'),
             style: const TextStyle(color: silver, fontSize: 11)),
           const SizedBox(height: 16),
           TextField(
