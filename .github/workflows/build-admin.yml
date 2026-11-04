@@ -1,0 +1,108 @@
+name: Build CARACAL ADMIN
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'admin_app/**'
+      - 'admin-web/**'
+      - '.github/workflows/build-admin.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  admin-android:
+    name: Build Admin Android APK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: admin_app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate Android platform
+        run: |
+          if [ ! -d android ]; then
+            flutter create --project-name caracal_admin --platforms=android .
+          fi
+
+      - name: Configure Android SDK
+        run: |
+          if [ -f android/app/build.gradle.kts ]; then
+            sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/' android/app/build.gradle.kts
+          elif [ -f android/app/build.gradle ]; then
+            sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 36/' android/app/build.gradle
+          fi
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze admin app
+        run: flutter analyze lib --no-fatal-infos
+
+      - name: Build release APK
+        env:
+          SUPABASE_URL: https://fabbzaviesndfobxhrxf.supabase.co
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "SUPABASE_ANON_KEY repository secret is required for a secure release build."
+            exit 1
+          fi
+          flutter build apk --release --obfuscate --split-debug-info=build/symbols \
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+
+      - name: Upload admin APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: CARACAL-ADMIN-APK
+          path: admin_app/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  admin-web:
+    name: Build Admin Web Panel
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: admin-web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: admin-web/package-lock.json
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build web panel
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://fabbzaviesndfobxhrxf.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ]; then
+            echo "SUPABASE_ANON_KEY repository secret is required for the web build."
+            exit 1
+          fi
+          npm run build
