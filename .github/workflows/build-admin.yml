@@ -70,20 +70,20 @@ jobs:
                   original = path.read_text()
               except (UnicodeDecodeError, OSError):
                   continue
-              updated = re.sub(r"(?m)^(\\s*compileSdkVersion\\s+)\\d+\\s*$", r"\\g<1>36", original)
-              updated = re.sub(r"(?m)^(\\s*compileSdk\\s*=\\s*)\\d+\\s*$", r"\\g<1>36", updated)
+              updated = re.sub(r"(?m)^(\s*compileSdkVersion\s+)\\d+\s*$", r"\g<1>36", original)
+              updated = re.sub(r"(?m)^(\s*compileSdk\s*=\s*)\\d+\s*$", r"\g<1>36", updated)
               if updated != original:
                   path.write_text(updated)
                   changed.append(str(path))
-          print("Patched plugin Gradle files:", *changed, sep="\\n")
+          print("Patched plugin Gradle files:", *changed, sep="\n")
           file_picker = list(root.glob("file_picker-*/android/build.gradle*"))
           if not file_picker:
               raise SystemExit("file_picker Gradle file not found in pub cache")
           for path in file_picker:
               data = path.read_text()
               print(f"Verified {path}:")
-              print("\\n".join(line for line in data.splitlines() if "compileSdk" in line))
-              if not re.search(r"compileSdk(?:Version)?\\s*(?:=\\s*)?36", data):
+              print("\n".join(line for line in data.splitlines() if "compileSdk" in line))
+              if not re.search(r"compileSdk(?:Version)?\s*(?:=\s*)?36", data):
                   raise SystemExit("file_picker compile SDK was not raised to 36")
           PY
 
