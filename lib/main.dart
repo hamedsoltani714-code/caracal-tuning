@@ -437,43 +437,7 @@ class HomeScreen extends StatelessWidget {
                 child: Text(t('حالت نمایشی', 'DEMO MODE'), style: const TextStyle(color: Color(0xFFFF6B70), fontSize: 8, fontWeight: FontWeight.w900))),
             ]),
             const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.fromLTRB(3, 5, 3, 5),
-              decoration: BoxDecoration(color: const Color(0xFF070809), borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFF505963), width: 1.2),
-                boxShadow: const [BoxShadow(color: Colors.black, blurRadius: 14, spreadRadius: 2, offset: Offset(0, 5))]),
-              child: Column(children: [
-                SizedBox(height: compact ? 142 : 158,
-                  child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                    Expanded(flex: 3, child: AnimatedGauge(redline: redline, animations: animations)),
-                    Expanded(flex: 4, child: AnimatedSpeedGauge(animations: animations)),
-                    Expanded(flex: 2, child: CockpitSideInfo(english: english)),
-                  ])),
-                const SizedBox(height: 4),
-                Row(children: [
-                  Expanded(child: _dialCaption(t('دور موتور', 'ENGINE RPM'), 'x1000')),
-                  Expanded(flex: 2, child: _dialCaption(t('سرعت خودرو', 'VEHICLE SPEED'), 'km/h')),
-                  Expanded(child: _dialCaption(t('وضعیت خودرو', 'VEHICLE STATUS'), 'LIVE DATA')),
-                ]),
-                const SizedBox(height: 7),
-                const Divider(height: 1, color: Colors.white12),
-                const SizedBox(height: 6),
-                Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-                  _statusChip(Icons.thermostat, '90°C'),
-                  _statusChip(Icons.battery_charging_full, '14.2V'),
-                  _statusChip(Icons.local_gas_station, '68%'),
-                  _statusChip(Icons.settings, 'D'),
-                ]),
-              ]),
-            ),
-            const SizedBox(height: 10),
-            Row(children: [
-              const Icon(Icons.info_outline, color: Colors.white38, size: 13),
-              const SizedBox(width: 5),
-              Expanded(child: Text(t('اعداد صرفاً نمایشی هستند؛ اطلاعات واقعی به اتصال OBD-II نیاز دارد.',
-                'Illustrative values only. Live vehicle data requires an OBD-II adapter.'),
-                style: const TextStyle(color: Colors.white54, fontSize: 9))),
-            ]),
+            CaracalCockpitVideo(height: compact ? 166 : 184),
           ]),
         ),
         const SizedBox(height: 24),
@@ -945,6 +909,86 @@ class CockpitSideInfo extends StatelessWidget {
       ]),
     ),
   );
+}
+
+class CaracalCockpitVideo extends StatefulWidget {
+  final double height;
+  const CaracalCockpitVideo({super.key, required this.height});
+
+  @override
+  State<CaracalCockpitVideo> createState() => _CaracalCockpitVideoState();
+}
+
+class _CaracalCockpitVideoState extends State<CaracalCockpitVideo> {
+  late final VideoPlayerController _controller;
+  bool _ready = false;
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = VideoPlayerController.asset('assets/Intro.mp4');
+    _initializeAndPlay();
+  }
+
+  Future<void> _initializeAndPlay() async {
+    try {
+      await _controller.initialize();
+      await _controller.setLooping(true);
+      await _controller.setVolume(1.0);
+      if (!mounted) return;
+      setState(() => _ready = true);
+      await _controller.play();
+    } catch (error) {
+      debugPrint('CARACAL cockpit video error: $error');
+      if (mounted) setState(() => _failed = true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: SizedBox(
+        width: double.infinity,
+        height: widget.height,
+        child: ColoredBox(
+          color: const Color(0xFF050607),
+          child: _failed
+              ? const Center(
+                  child: Icon(Icons.movie_creation_outlined,
+                      color: Colors.white38, size: 34),
+                )
+              : !_ready
+                  ? const Center(
+                      child: SizedBox(
+                        width: 26,
+                        height: 26,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(0xFFFF4148),
+                        ),
+                      ),
+                    )
+                  : FittedBox(
+                      fit: BoxFit.cover,
+                      clipBehavior: Clip.hardEdge,
+                      child: SizedBox(
+                        width: _controller.value.size.width,
+                        height: _controller.value.size.height,
+                        child: VideoPlayer(_controller),
+                      ),
+                    ),
+        ),
+      ),
+    );
+  }
 }
 
 class VehicleTelemetryPanel extends StatelessWidget {
