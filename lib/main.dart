@@ -467,17 +467,6 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _statusChip(IconData icon, String value) => Row(mainAxisSize: MainAxisSize.min, children: [
-    Icon(icon, color: const Color(0xFF8DABC0), size: 11),
-    const SizedBox(width: 3),
-    Text(value, style: const TextStyle(color: silver, fontSize: 9, fontWeight: FontWeight.w800)),
-  ]);
-
-  Widget _dialCaption(String title, String unit) => Column(children: [
-    Text(title, style: const TextStyle(color: silver, fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 1.1)),
-    const SizedBox(height: 2),
-    Text(unit, style: const TextStyle(color: Colors.white38, fontSize: 8, letterSpacing: 1)),
-  ]);
 }
 
 class QuickCard extends StatelessWidget {
