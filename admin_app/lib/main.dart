@@ -87,7 +87,7 @@ class AdminHome extends StatefulWidget {
 }
 class _AdminHomeState extends State<AdminHome>{
   int tab=0;bool busy=false;String? error;
-  List<Map<String,dynamic>> bookings=[],lessons=[],users=[],memberships=[],notifications=[];
+  List<Map<String,dynamic>> bookings=[],lessons=[],modules=[],users=[],memberships=[],notifications=[];
   bool get owner=>widget.profile['role']=='owner';
   Map<String,dynamic> get perms=>Map<String,dynamic>.from(widget.profile['permissions']??{});
   bool get canBookings=>owner||perms['manage_bookings']==true;
@@ -101,7 +101,7 @@ class _AdminHomeState extends State<AdminHome>{
     if(mounted)setState((){busy=true;error=null;});
     try{
       if(canBookings){final r=await db.from('booking_requests').select('*').order('created_at',ascending:false).limit(200);bookings=List<Map<String,dynamic>>.from(r);}
-      if(canContent){final r=await db.from('lessons').select('*').order('created_at',ascending:false).limit(200);lessons=List<Map<String,dynamic>>.from(r);}
+      if(canContent){final r=await db.from('lessons').select('*').order('created_at',ascending:false).limit(300);lessons=List<Map<String,dynamic>>.from(r);final mr=await db.from('learning_modules').select('*').order('sort_order').limit(300);modules=List<Map<String,dynamic>>.from(mr);}
       if(owner||canUsers||canMemberships){final r=await db.from('profiles').select('id,email,role,permissions').order('created_at',ascending:false).limit(300);users=List<Map<String,dynamic>>.from(r);}
       if(canMemberships){final r=await db.from('memberships').select('*').order('created_at',ascending:false).limit(300);memberships=List<Map<String,dynamic>>.from(r);}
       if(canNotifications){final r=await db.from('app_notifications').select('*').order('created_at',ascending:false).limit(300);notifications=List<Map<String,dynamic>>.from(r);}
@@ -115,7 +115,7 @@ class _AdminHomeState extends State<AdminHome>{
   }
   Future<void> changeBooking(Map<String,dynamic>b,String status)=>act(()async{await db.from('booking_requests').update({'status':status}).eq('id',b['id']);});
   Future<void> saveLesson(Map<String,dynamic> l)=>act(()async{
-    final data=<String,dynamic>{for(final k in ['title','title_fa','title_en','summary','summary_fa','summary_en','body','body_fa','body_en','category','is_published','media_url','media_type'])if(l.containsKey(k))k:l[k]};
+    final data=<String,dynamic>{'title':(l['title_fa']??l['title_en']??'').toString(),'title_fa':(l['title_fa']??'').toString(),'title_en':(l['title_en']??'').toString(),'summary':(l['summary_fa']??'').toString(),'summary_fa':(l['summary_fa']??'').toString(),'summary_en':(l['summary_en']??'').toString(),'body':(l['body_fa']??'').toString(),'body_fa':(l['body_fa']??'').toString(),'body_en':(l['body_en']??'').toString(),'category':(l['category']??'general').toString(),'is_published':l['is_published']==true,'media_url':l['media_url'],'media_type':l['media_type']??'none'};
     if(l['id']==null){data['created_by']=db.auth.currentUser!.id; if(!canPublish)data['is_published']=false; await db.from('lessons').insert(data);}else{if(!canPublish)data['is_published']=false; await db.from('lessons').update(data).eq('id',l['id']);}
   });
   Future<void> invite(String mail, Map<String, bool> p) async {
@@ -195,9 +195,15 @@ class _AdminHomeState extends State<AdminHome>{
     ]))),
   ]);
   Widget contentPage()=>ListView(padding:const EdgeInsets.all(14),children:[
-    Row(children:[const Expanded(child:Text('محتوای آموزشی',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900))),FilledButton.icon(onPressed:()=>editLesson(),icon:const Icon(Icons.add),label:const Text('افزودن'))]),
-    if(lessons.isEmpty)empty('هنوز مطلبی ثبت نشده است.'),
-    ...lessons.map((l)=>card(ListTile(contentPadding:EdgeInsets.zero,title:Text((l['title_fa']??l['title']??'بدون عنوان').toString()),subtitle:Text((l['title_en']??'').toString()+' • '+((l['is_published']==true)?'منتشرشده':'پیش‌نویس')),trailing:IconButton(onPressed:()=>editLesson(existing:l),icon:const Icon(Icons.edit,color:silver))))),
+    Row(children:[const Expanded(child:Text('مدیریت محتوای اپ',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900))),FilledButton.icon(onPressed:()=>editLesson(),icon:const Icon(Icons.add),label:const Text('مطلب جدید'))]),
+    const SizedBox(height:8),const Text('مطالب آموزشی منتشرشده و پیش‌نویس‌ها',style:TextStyle(color:silver)),
+    if(lessons.isEmpty)empty('هنوز مطلب آموزشی ثبت نشده است.'),
+    ...lessons.map((l)=>card(ListTile(contentPadding:EdgeInsets.zero,title:Text((l['title_fa']??l['title']??'بدون عنوان').toString()),subtitle:Text((l['title_en']??'').toString()+' • '+((l['is_published']==true)?'منتشرشده':'پیش‌نویس')),trailing:Wrap(mainAxisSize:MainAxisSize.min,children:[IconButton(onPressed:()=>editLesson(existing:l),icon:const Icon(Icons.edit,color:silver)),IconButton(onPressed:()=>act(()async{await db.from('lessons').delete().eq('id',l['id']);}),icon:const Icon(Icons.delete_outline,color:red))])))),
+    const Divider(height:30),
+    Row(children:[const Expanded(child:Text('بخش‌ها و دسته‌های صفحه آموزش',style:TextStyle(fontSize:18,fontWeight:FontWeight.w900))),FilledButton.icon(onPressed:()=>editModule(),icon:const Icon(Icons.add),label:const Text('بخش جدید'))]),
+    const Text('این موارد همان کارت‌های فهرست تخصصی اپ هستند؛ عنوان و توضیح آن‌ها از اینجا قابل ویرایش است.',style:TextStyle(color:silver,fontSize:11)),
+    if(modules.isEmpty)empty('بخشی ثبت نشده است.'),
+    ...modules.map((m)=>card(ListTile(contentPadding:EdgeInsets.zero,title:Text((m['title_fa']??'بدون عنوان').toString()),subtitle:Text('${m['title_en']??''} • ${m['is_published']==true?'نمایش در اپ':'مخفی از اپ'}'),trailing:Wrap(mainAxisSize:MainAxisSize.min,children:[IconButton(onPressed:()=>editModule(existing:m),icon:const Icon(Icons.edit,color:silver)),IconButton(onPressed:()=>act(()async{await db.from('learning_modules').delete().eq('id',m['id']);}),icon:const Icon(Icons.delete_outline,color:red))])))),
   ]);
   Future<void> editLesson({Map<String,dynamic>? existing})async{
     final l=<String,dynamic>{'id':existing?['id'], 'title_fa':existing?['title_fa']??existing?['title']??'','title_en':existing?['title_en']??'','summary_fa':existing?['summary_fa']??existing?['summary']??'','summary_en':existing?['summary_en']??'','body_fa':existing?['body_fa']??existing?['body']??'','body_en':existing?['body_en']??'','category':existing?['category']??'general','is_published':existing?['is_published']==true};
@@ -243,6 +249,31 @@ class _AdminHomeState extends State<AdminHome>{
       ]),
     ]))),actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('انصراف')),FilledButton(onPressed:busy?null:()async{for(final k in c.keys){l[k]=c[k]!.text.trim();}l['is_published']=published;l['media_url']=mediaUrl;l['media_type']=mediaType;Navigator.pop(ctx);await saveLesson(l);},child:const Text('ذخیره'))])));
     for(final x in c.values){x.dispose();}
+  }
+  Future<void> editModule({Map<String,dynamic>? existing})async{
+    final fields=<String,TextEditingController>{
+      'title_fa':TextEditingController(text:existing?['title_fa']?.toString()??''),
+      'title_en':TextEditingController(text:existing?['title_en']?.toString()??''),
+      'description_fa':TextEditingController(text:existing?['description_fa']?.toString()??''),
+      'description_en':TextEditingController(text:existing?['description_en']?.toString()??''),
+      'category':TextEditingController(text:existing?['category']?.toString()??'learn'),
+      'icon_key':TextEditingController(text:existing?['icon_key']?.toString()??'school'),
+      'sort_order':TextEditingController(text:existing?['sort_order']?.toString()??'100'),
+    };
+    bool published=existing==null?canPublish:existing['is_published']==true;
+    await showDialog(context:context,builder:(ctx)=>StatefulBuilder(builder:(ctx,setDialog)=>AlertDialog(
+      backgroundColor:panel,title:Text(existing==null?'بخش آموزشی جدید':'ویرایش بخش آموزشی'),
+      content:SizedBox(width:480,child:SingleChildScrollView(child:Column(children:[
+        for(final e in {'title_fa':'عنوان فارسی','title_en':'عنوان انگلیسی','description_fa':'توضیح فارسی','description_en':'توضیح انگلیسی','category':'گروه (learn/diagnosis/reference/repair/tools)','icon_key':'آیکون (school/tune/memory/...)','sort_order':'ترتیب نمایش'}.entries)
+          Padding(padding:const EdgeInsets.only(bottom:8),child:TextField(controller:fields[e.key],maxLines:e.key.startsWith('description')?3:1,decoration:InputDecoration(labelText:e.value))),
+        SwitchListTile(value:published,onChanged:canPublish?(v)=>setDialog(()=>published=v):null,title:const Text('نمایش در اپ اصلی')),
+      ]))),
+      actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('انصراف')),FilledButton(onPressed:busy?null:()async{
+        final data=<String,dynamic>{for(final e in fields.entries)e.key:e.value.text.trim(),'sort_order':int.tryParse(fields['sort_order']!.text.trim())??100,'is_published':published,if(existing==null)'created_by':db.auth.currentUser!.id};
+        Navigator.pop(ctx);await act(()async{if(existing==null){await db.from('learning_modules').insert(data);}else{await db.from('learning_modules').update(data).eq('id',existing['id']);}});
+      },child:const Text('ذخیره'))],
+    )));
+    for(final c in fields.values){c.dispose();}
   }
   Widget usersPage()=>ListView(padding:const EdgeInsets.all(14),children:[
     const Text('کاربران',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900)),
