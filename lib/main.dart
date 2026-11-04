@@ -416,9 +416,9 @@ class HomeScreen extends StatelessWidget {
             onPressed: () => showDialog<void>(context: context, builder: (_) => NotificationCenterDialog(english: english)),
             icon: const Icon(Icons.notifications_none, color: silver, size: 27)),
         ]),
-        const SizedBox(height: 18),
+        const SizedBox(height: 12),
         Container(
-          padding: EdgeInsets.fromLTRB(compact ? 10 : 15, 14, compact ? 10 : 15, 14),
+          padding: EdgeInsets.fromLTRB(compact ? 8 : 11, 9, compact ? 8 : 11, 9),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
             gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
@@ -438,15 +438,15 @@ class HomeScreen extends StatelessWidget {
             ]),
             const SizedBox(height: 8),
             Container(
-              padding: const EdgeInsets.fromLTRB(5, 10, 5, 7),
+              padding: const EdgeInsets.fromLTRB(3, 5, 3, 5),
               decoration: BoxDecoration(color: const Color(0xFF070809), borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: const Color(0xFF505963), width: 1.2),
                 boxShadow: const [BoxShadow(color: Colors.black, blurRadius: 14, spreadRadius: 2, offset: Offset(0, 5))]),
               child: Column(children: [
-                SizedBox(height: compact ? 190 : 218,
+                SizedBox(height: compact ? 142 : 158,
                   child: Row(children: [
                     Expanded(child: AnimatedGauge(redline: redline, animations: animations)),
-                    Container(width: 1, height: 145, color: Colors.white12),
+                    Container(width: 1, height: 108, color: Colors.white12),
                     Expanded(child: AnimatedSpeedGauge(animations: animations)),
                   ])),
                 Padding(padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -935,17 +935,17 @@ class VehicleTelemetryPanel extends StatelessWidget {
       const SizedBox(height: 8),
       GridView.count(
         crossAxisCount: 4, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-        childAspectRatio: 1.05, mainAxisSpacing: 6, crossAxisSpacing: 6,
+        childAspectRatio: 2.45, mainAxisSpacing: 4, crossAxisSpacing: 4,
         children: items.map((item) => Container(
-          padding: const EdgeInsets.all(7),
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
           decoration: BoxDecoration(color: const Color(0xFF0D0F12),
             borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.white10)),
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(item.$3, color: const Color(0xFF56C8FF), size: 16),
-            const SizedBox(height: 5),
-            FittedBox(child: Text(item.$2, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w900))),
+            Icon(item.$3, color: const Color(0xFF56C8FF), size: 12),
+            const SizedBox(height: 2),
+            FittedBox(child: Text(item.$2, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900))),
             const SizedBox(height: 3),
-            FittedBox(child: Text(item.$1, style: const TextStyle(color: silver, fontSize: 8))),
+            FittedBox(child: Text(item.$1, style: const TextStyle(color: silver, fontSize: 7))),
           ]),
         )).toList(),
       ),
