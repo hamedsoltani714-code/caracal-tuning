@@ -1132,7 +1132,7 @@ class CaracalPainter extends CustomPainter {
 }
 
 
-void showLesson(BuildContext context, bool english, String title) {
+Future<void> showLesson(BuildContext context, bool english, String title) async {
   final Map<String, List<String>> lessons = {
     'ECU Fundamentals': [
       'واحد کنترل الکترونیکی (ECU) داده حسگرها را دریافت می‌کند و بر اساس نرم‌افزار و کالیبراسیون، عملگرهای موتور را مدیریت می‌کند.',
@@ -1175,12 +1175,34 @@ void showLesson(BuildContext context, bool english, String title) {
       'تغییر جدول بدون شناخت منطق کنترلی و اعتبارسنجی می‌تواند به موتور آسیب بزند؛ آموزش و آزمون باید در محیط کنترل‌شده انجام شود.'
     ],
   };
-  final points = lessons[title] ?? ['محتوای این درس به‌زودی تکمیل می‌شود.'];
+  List<String> points = lessons[title] ?? ['محتوای این درس به‌زودی تکمیل می‌شود.'];
+  List<String> englishPoints = [];
+  String dialogTitle = title;
+  if (supabaseConfigured) {
+    try {
+      final row = await Supabase.instance.client.from('lessons')
+          .select('title_fa,title_en,body_fa,body_en')
+          .eq('title_en', title).eq('is_published', true).maybeSingle();
+      if (row != null) {
+        dialogTitle = (english ? row['title_en'] : row['title_fa'])?.toString() ?? title;
+        final faBody = (row['body_fa'] ?? '').toString().trim();
+        final enBody = (row['body_en'] ?? '').toString().trim();
+        if (faBody.isNotEmpty) {
+          points = faBody.split(RegExp(r'\\r?\\n+')).where((x) => x.trim().isNotEmpty).toList();
+        }
+        if (enBody.isNotEmpty) {
+          englishPoints = enBody.split(RegExp(r'\\r?\\n+')).where((x) => x.trim().isNotEmpty).toList();
+        }
+      }
+    } catch (_) {
+      // Keep the built-in lesson as a graceful offline fallback.
+    }
+  }
   showDialog<void>(
     context: context,
     builder: (ctx) => AlertDialog(
       backgroundColor: panel,
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+      title: Text(dialogTitle, style: const TextStyle(fontWeight: FontWeight.w900)),
       content: SizedBox(
         width: double.maxFinite,
         child: SingleChildScrollView(
@@ -1189,7 +1211,7 @@ void showLesson(BuildContext context, bool english, String title) {
             mainAxisSize: MainAxisSize.min,
             children: [
               for (int i = 0; i < points.length; i++) ...[
-                Text('${i + 1}. ${english ? _lessonEnglish(title, i) : points[i]}',
+                Text('${i + 1}. ${english ? (i < englishPoints.length ? englishPoints[i] : _lessonEnglish(title, i)) : points[i]}',
                     style: const TextStyle(height: 1.7, color: silver)),
                 const SizedBox(height: 12),
               ],
