@@ -58,12 +58,8 @@ jobs:
       - name: Build release APK
         env:
           SUPABASE_URL: https://fabbzaviesndfobxhrxf.supabase.co
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZhYmJ6YXZpZXNuZGZvYnhocnhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1MzEyNjcsImV4cCI6MjEwOTEwNzI2N30.mwJfaLmV0dKso2dsXxX3gr2naFYqFEFtGi6Nw731RNk
         run: |
-          if [ -z "$SUPABASE_ANON_KEY" ]; then
-            echo "SUPABASE_ANON_KEY repository secret is required for a secure release build."
-            exit 1
-          fi
           flutter build apk --release --obfuscate --split-debug-info=build/symbols \
             --dart-define=SUPABASE_URL="$SUPABASE_URL" \
             --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
@@ -90,8 +86,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
-          cache-dependency-path: admin-web/package-lock.json
 
       - name: Install dependencies
         run: npm install
@@ -99,10 +93,6 @@ jobs:
       - name: Build web panel
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://fabbzaviesndfobxhrxf.supabase.co
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+NEXT_PUBLIC_SUPABASE_ANON_KEY:eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJjYXJhY2FsIiwicmVmIjoiZmFiYnphemllc25kZm9ieGhyeGZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1MzEyNjcsImV4cCI6MjEwOTEwNzI2N30.mwJfaLmV0dKso2dsXxX3gr2naFYqFEFtGi6Nw731RNk
         run: |
-          if [ -z "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ]; then
-            echo "SUPABASE_ANON_KEY repository secret is required for the web build."
-            exit 1
-          fi
           npm run build
