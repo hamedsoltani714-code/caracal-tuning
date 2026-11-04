@@ -213,8 +213,7 @@ class _CaracalAppState extends State<CaracalApp> {
   }
 }
 
-// INTRO — plays the uploaded cinematic MP4 (including its own soundtrack).
-
+// INTRO — branded CARACAL identity screen. The caracal mark is the first thing users see.
 class IntroScreen extends StatefulWidget {
   final VoidCallback onFinished;
   final bool soundEnabled;
@@ -224,163 +223,96 @@ class IntroScreen extends StatefulWidget {
   State<IntroScreen> createState() => _IntroScreenState();
 }
 
-class _IntroScreenState extends State<IntroScreen> {
-  VideoPlayerController? _video;
-  Timer? _fallbackTimer;
-  bool _failed = false;
-  bool _finished = false;
+class _IntroScreenState extends State<IntroScreen> with SingleTickerProviderStateMixin {
+  late final AnimationController _entrance = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..forward();
+  Timer? _finishTimer;
 
   @override
   void initState() {
     super.initState();
-    // Play the supplied intro video with its ORIGINAL embedded soundtrack.
-    _initializeVideo();
-  }
-
-  Future<void> _initializeVideo() async {
-    try {
-      final controller = VideoPlayerController.asset('assets/Intro.mp4');
-      _video = controller;
-      await controller.initialize();
-      if (!mounted) {
-        await controller.dispose();
-        return;
-      }
-      await controller.setLooping(false);
-      // Preserve the original audio track embedded in Intro.mp4.
-      await controller.setVolume(widget.soundEnabled ? 1.0 : 0.0);
-      controller.addListener(_videoListener);
-      await controller.play();
-      setState(() {});
-      // Safety fallback for devices/codecs that fail to report completion.
-      final duration = controller.value.duration;
-      _fallbackTimer = Timer(duration + const Duration(seconds: 2), _finish);
-    } catch (e) {
-      debugPrint('CARACAL intro video failed: $e');
-      if (!mounted) return;
-      setState(() => _failed = true);
-      _fallbackTimer = Timer(const Duration(seconds: 3), _finish);
-    }
-  }
-
-  void _videoListener() {
-    final controller = _video;
-    if (controller == null || !controller.value.isInitialized) return;
-    if (controller.value.hasError) {
-      debugPrint('CARACAL intro playback error: ${controller.value.errorDescription}');
-      _finish();
-    } else if (controller.value.isCompleted) {
-      _finish();
-    }
-  }
-
-  void _finish() {
-    if (_finished || !mounted) return;
-    _finished = true;
-    _fallbackTimer?.cancel();
-    widget.onFinished();
+    // A short branded welcome, then open the vehicle dashboard.
+    _finishTimer = Timer(const Duration(milliseconds: 2600), () {
+      if (mounted) widget.onFinished();
+    });
   }
 
   @override
   void dispose() {
-    _fallbackTimer?.cancel();
-    _video?.removeListener(_videoListener);
-    _video?.dispose();
+    _finishTimer?.cancel();
+    _entrance.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final controller = _video;
     return Scaffold(
       backgroundColor: Colors.black,
       body: SizedBox.expand(
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (controller != null && controller.value.isInitialized)
-              FittedBox(
-                fit: BoxFit.cover,
-                clipBehavior: Clip.hardEdge,
-                child: SizedBox(
-                  width: controller.value.size.width,
-                  height: controller.value.size.height,
-                  child: VideoPlayer(controller),
-                ),
-              )
-            else
-              const DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: Alignment.center,
-                    radius: 1.0,
-                    colors: [Color(0xFF292D33), Colors.black],
-                  ),
-                ),
+        child: DecoratedBox(
+          decoration: const BoxDecoration(
+            gradient: RadialGradient(
+              center: Alignment(0, -0.12),
+              radius: 0.9,
+              colors: [Color(0xFF24282E), Color(0xFF090A0C), Colors.black],
+            ),
+          ),
+          child: FadeTransition(
+            opacity: CurvedAnimation(parent: _entrance, curve: Curves.easeOut),
+            child: ScaleTransition(
+              scale: Tween<double>(begin: .82, end: 1).animate(
+                CurvedAnimation(parent: _entrance, curve: Curves.easeOutBack),
               ),
-            // Subtle dark footer keeps the brand readable without covering the clip.
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(20, 34, 20, 24),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Color(0xE6000000)],
-                  ),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Image.asset(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 230,
+                    height: 230,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFF111317),
+                      border: Border.all(color: const Color(0xFF69727D), width: 1.4),
+                      boxShadow: const [
+                        BoxShadow(color: Color(0x55AAB4C0), blurRadius: 42, spreadRadius: 2),
+                        BoxShadow(color: Colors.black, blurRadius: 28, offset: Offset(0, 14)),
+                      ],
+                    ),
+                    child: Image.asset(
                       'assets/130315.png',
-                      width: 76,
-                      height: 62,
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Icon(
-                        Icons.directions_car_filled,
-                        color: silver,
-                        size: 44,
-                      ),
+                      errorBuilder: (_, __, ___) => const Icon(Icons.pets, color: silver, size: 120),
                     ),
-                    const SizedBox(height: 5),
-                    const Text(
-                      'CARACAL TUNING',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 19,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 3,
-                        shadows: [Shadow(color: Colors.black, blurRadius: 12)],
-                      ),
+                  ),
+                  const SizedBox(height: 28),
+                  const Text(
+                    'CARACAL TUNING',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 23,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 3.2,
                     ),
-                    const SizedBox(height: 5),
-                    const Text(
-                      'DRIVE • LEARN • UPGRADE',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: red,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2,
-                      ),
-                    ),
-                    if (_failed) ...[
-                      const SizedBox(height: 12),
-                      const Text(
-                        'CARACAL TUNING',
-                        style: TextStyle(color: Colors.white54, fontSize: 9),
-                      ),
-                    ],
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 9),
+                  const Text(
+                    'DRIVE • LEARN • UPGRADE',
+                    style: TextStyle(color: red, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 2.1),
+                  ),
+                  const SizedBox(height: 34),
+                  const SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: red),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -912,6 +844,8 @@ class _CaracalCockpitVideoState extends State<CaracalCockpitVideo> {
   late final VideoPlayerController _controller;
   bool _ready = false;
   bool _failed = false;
+  bool _soundPlayed = false;
+  bool _loopTransitionRunning = false;
 
   @override
   void initState() {
@@ -923,8 +857,11 @@ class _CaracalCockpitVideoState extends State<CaracalCockpitVideo> {
   Future<void> _initializeAndPlay() async {
     try {
       await _controller.initialize();
-      await _controller.setLooping(true);
+      // Play the clip and its original sound once. After the first pass,
+      // mute it and keep the dashboard animation looping silently.
+      await _controller.setLooping(false);
       await _controller.setVolume(1.0);
+      _controller.addListener(_handlePlayback);
       if (!mounted) return;
       setState(() => _ready = true);
       await _controller.play();
@@ -934,8 +871,35 @@ class _CaracalCockpitVideoState extends State<CaracalCockpitVideo> {
     }
   }
 
+  void _handlePlayback() {
+    if (!mounted || !_controller.value.isInitialized || _soundPlayed || _loopTransitionRunning) return;
+    if (_controller.value.hasError) {
+      debugPrint('CARACAL cockpit playback error: ${_controller.value.errorDescription}');
+      return;
+    }
+    if (_controller.value.isCompleted) {
+      _loopTransitionRunning = true;
+      _playSilentLoop();
+    }
+  }
+
+  Future<void> _playSilentLoop() async {
+    try {
+      await _controller.setVolume(0);
+      await _controller.setLooping(true);
+      await _controller.seekTo(Duration.zero);
+      _soundPlayed = true;
+      if (mounted) await _controller.play();
+    } catch (error) {
+      debugPrint('CARACAL cockpit loop error: $error');
+    } finally {
+      _loopTransitionRunning = false;
+    }
+  }
+
   @override
   void dispose() {
+    _controller.removeListener(_handlePlayback);
     _controller.dispose();
     super.dispose();
   }
@@ -951,18 +915,14 @@ class _CaracalCockpitVideoState extends State<CaracalCockpitVideo> {
           color: const Color(0xFF050607),
           child: _failed
               ? const Center(
-                  child: Icon(Icons.movie_creation_outlined,
-                      color: Colors.white38, size: 34),
+                  child: Icon(Icons.movie_creation_outlined, color: Colors.white38, size: 34),
                 )
               : !_ready
                   ? const Center(
                       child: SizedBox(
                         width: 26,
                         height: 26,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Color(0xFFFF4148),
-                        ),
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFFF4148)),
                       ),
                     )
                   : FittedBox(
