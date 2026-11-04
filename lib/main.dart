@@ -234,7 +234,7 @@ class _IntroScreenState extends State<IntroScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.asset('assets/Intro.mp4');
+    _controller = VideoPlayerController.asset('assets/images/intro.mp4');
     _initializeIntroVideo();
   }
 
