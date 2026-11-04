@@ -214,7 +214,7 @@ class _CaracalAppState extends State<CaracalApp> {
   }
 }
 
-// INTRO — branded CARACAL identity screen. The caracal mark is the first thing users see.
+// INTRO — play the original CARACAL roar video before opening the existing dashboard.
 class IntroScreen extends StatefulWidget {
   final VoidCallback onFinished;
   final bool soundEnabled;
@@ -224,26 +224,62 @@ class IntroScreen extends StatefulWidget {
   State<IntroScreen> createState() => _IntroScreenState();
 }
 
-class _IntroScreenState extends State<IntroScreen> with SingleTickerProviderStateMixin {
-  late final AnimationController _entrance = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 900),
-  )..forward();
-  Timer? _finishTimer;
+class _IntroScreenState extends State<IntroScreen> {
+  late final VideoPlayerController _controller;
+  bool _ready = false;
+  bool _failed = false;
+  bool _finished = false;
+  Timer? _fallbackTimer;
 
   @override
   void initState() {
     super.initState();
-    // A short branded welcome, then open the vehicle dashboard.
-    _finishTimer = Timer(const Duration(milliseconds: 2600), () {
-      if (mounted) widget.onFinished();
-    });
+    _controller = VideoPlayerController.asset('assets/Intro.mp4');
+    _initializeIntroVideo();
+  }
+
+  Future<void> _initializeIntroVideo() async {
+    try {
+      await _controller.initialize();
+      await _controller.setLooping(false);
+      await _controller.setVolume(widget.soundEnabled ? 1.0 : 0.0);
+      _controller.addListener(_handleVideoState);
+      if (!mounted) return;
+      setState(() => _ready = true);
+      await _controller.play();
+    } catch (error) {
+      debugPrint('CARACAL intro video error: $error');
+      if (!mounted) return;
+      setState(() => _failed = true);
+      // Do not leave the app stuck on the intro if a device cannot decode the clip.
+      _fallbackTimer = Timer(const Duration(seconds: 3), _finishIntro);
+    }
+  }
+
+  void _handleVideoState() {
+    if (!mounted || !_controller.value.isInitialized) return;
+    if (_controller.value.hasError) {
+      debugPrint('CARACAL intro playback error: ${_controller.value.errorDescription}');
+      if (!_failed) {
+        setState(() => _failed = true);
+        _fallbackTimer ??= Timer(const Duration(seconds: 3), _finishIntro);
+      }
+      return;
+    }
+    if (_controller.value.isCompleted) _finishIntro();
+  }
+
+  void _finishIntro() {
+    if (!mounted || _finished) return;
+    _finished = true;
+    widget.onFinished();
   }
 
   @override
   void dispose() {
-    _finishTimer?.cancel();
-    _entrance.dispose();
+    _fallbackTimer?.cancel();
+    _controller.removeListener(_handleVideoState);
+    _controller.dispose();
     super.dispose();
   }
 
@@ -252,69 +288,34 @@ class _IntroScreenState extends State<IntroScreen> with SingleTickerProviderStat
     return Scaffold(
       backgroundColor: Colors.black,
       body: SizedBox.expand(
-        child: DecoratedBox(
-          decoration: const BoxDecoration(
-            gradient: RadialGradient(
-              center: Alignment(0, -0.12),
-              radius: 0.9,
-              colors: [Color(0xFF24282E), Color(0xFF090A0C), Colors.black],
-            ),
-          ),
-          child: FadeTransition(
-            opacity: CurvedAnimation(parent: _entrance, curve: Curves.easeOut),
-            child: ScaleTransition(
-              scale: Tween<double>(begin: .82, end: 1).animate(
-                CurvedAnimation(parent: _entrance, curve: Curves.easeOutBack),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 230,
-                    height: 230,
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color(0xFF111317),
-                      border: Border.all(color: const Color(0xFF69727D), width: 1.4),
-                      boxShadow: const [
-                        BoxShadow(color: Color(0x55AAB4C0), blurRadius: 42, spreadRadius: 2),
-                        BoxShadow(color: Colors.black, blurRadius: 28, offset: Offset(0, 14)),
-                      ],
-                    ),
-                    child: Image.asset(
-                      'assets/130315.png',
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.pets, color: silver, size: 120),
+        child: _failed
+            ? Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.asset('assets/130315.png', width: 150, height: 150,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const Icon(Icons.pets, size: 110, color: silver)),
+                    const SizedBox(height: 18),
+                    const Text('CARACAL TUNING',
+                      style: TextStyle(color: Colors.white, fontSize: 22,
+                        fontWeight: FontWeight.w900, letterSpacing: 2.5)),
+                  ],
+                ),
+              )
+            : !_ready
+                ? const Center(
+                    child: CircularProgressIndicator(color: red, strokeWidth: 2.5),
+                  )
+                : FittedBox(
+                    fit: BoxFit.cover,
+                    clipBehavior: Clip.hardEdge,
+                    child: SizedBox(
+                      width: _controller.value.size.width,
+                      height: _controller.value.size.height,
+                      child: VideoPlayer(_controller),
                     ),
                   ),
-                  const SizedBox(height: 28),
-                  const Text(
-                    'CARACAL TUNING',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 23,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 3.2,
-                    ),
-                  ),
-                  const SizedBox(height: 9),
-                  const Text(
-                    'DRIVE • LEARN • UPGRADE',
-                    style: TextStyle(color: red, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 2.1),
-                  ),
-                  const SizedBox(height: 34),
-                  const SizedBox(
-                    width: 28,
-                    height: 28,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: red),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }
