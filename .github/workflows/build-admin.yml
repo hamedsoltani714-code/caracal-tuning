@@ -54,8 +54,16 @@ jobs:
             exit 1
           fi
 
+      - name: Prepare CARACAL launcher icon
+        run: |
+          mkdir -p assets
+          cp ../assets/130315.png assets/130315.png
+
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Generate CARACAL launcher icon
+        run: dart run flutter_launcher_icons
 
       - name: Force Android compile SDK 36 for cached Flutter plugins
         run: |
