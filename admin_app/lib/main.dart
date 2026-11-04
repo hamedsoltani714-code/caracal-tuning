@@ -53,9 +53,9 @@ class LoginPage extends StatefulWidget {
   @override State<LoginPage> createState()=>_LoginPageState();
 }
 class _LoginPageState extends State<LoginPage>{
-  final email=TextEditingController(),pass=TextEditingController(),code=TextEditingController();
-  bool otp=false,busy=false,hide=true;String? error;
-  @override void dispose(){email.dispose();pass.dispose();code.dispose();super.dispose();}
+  final email=TextEditingController(),pass=TextEditingController(),code=TextEditingController(),newPass=TextEditingController();
+  bool otp=false,invited=false,busy=false,hide=true;String? error;
+  @override void dispose(){email.dispose();pass.dispose();code.dispose();newPass.dispose();super.dispose();}
   Future<void> run(Future<void> Function() action) async {
     setState((){busy=true;error=null;});
     try{await action();}catch(e){if(mounted)setState(()=>error=e.toString().replaceFirst('Exception: ',''));}
@@ -63,7 +63,8 @@ class _LoginPageState extends State<LoginPage>{
   }
   Future<void> signIn()=>run(()async{final e=email.text.trim().toLowerCase();if(!e.contains('@')||pass.text.length<6)throw Exception('ایمیل معتبر و گذرواژه را وارد کن.');await db.auth.signInWithPassword(email:e,password:pass.text);});
   Future<void> sendCode()=>run(()async{final e=email.text.trim().toLowerCase();if(!e.contains('@'))throw Exception('ایمیل معتبر وارد کن.');await db.auth.signInWithOtp(email:e,shouldCreateUser:false);setState(()=>otp=true);});
-  Future<void> verify()=>run(()async{await db.auth.verifyOTP(email:email.text.trim().toLowerCase(),token:code.text.trim(),type:OtpType.email);});
+  Future<void> verify()=>run(()async{await db.auth.verifyOTP(email:email.text.trim().toLowerCase(),token:code.text.trim(),type:invited?OtpType.invite:OtpType.email);if(invited){if(newPass.text.length<8)throw Exception('رمز جدید باید حداقل ۸ نویسه باشد.');await db.auth.updateUser(UserAttributes(password:newPass.text));}});
+  Future<void> startInvite()=>run(()async{if(!email.text.trim().contains('@'))throw Exception('ایمیل مدیر را وارد کن.');setState((){otp=true;invited=true;});});
   @override Widget build(BuildContext context)=>Scaffold(body:Center(child:SingleChildScrollView(padding:const EdgeInsets.all(22),child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:460),child:Card(color:panel,child:Padding(padding:const EdgeInsets.all(24),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
     const Icon(Icons.pets,size:58,color:silver),const Text('CARACAL',textAlign:TextAlign.center,style:TextStyle(fontSize:28,fontWeight:FontWeight.w900,letterSpacing:5)),
     const Text('ADMIN CONTROL CENTER',textAlign:TextAlign.center,style:TextStyle(color:red,fontSize:11,letterSpacing:2)),
@@ -71,10 +72,12 @@ class _LoginPageState extends State<LoginPage>{
     const SizedBox(height:25),const Text('ورود امن مالک و مدیران',textAlign:TextAlign.center,style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),
     const SizedBox(height:15),TextField(controller:email,keyboardType:TextInputType.emailAddress,decoration:const InputDecoration(labelText:'ایمیل')),
     if(!otp)TextField(controller:pass,obscureText:hide,decoration:InputDecoration(labelText:'گذرواژه',suffixIcon:IconButton(onPressed:()=>setState(()=>hide=!hide),icon:Icon(hide?Icons.visibility:Icons.visibility_off)))),
-    if(otp)TextField(controller:code,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'کد یک‌بارمصرف ایمیل')),
+    if(otp)TextField(controller:code,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'کد فعال‌سازی دعوت مدیر')),
+    if(otp&&invited)TextField(controller:newPass,obscureText:true,decoration:const InputDecoration(labelText:'رمز عبور جدید (حداقل ۸ نویسه)')),
+    if(!otp)TextButton(onPressed:busy?null:startInvite,child:const Text('فعال‌سازی دعوت مدیر با کد ایمیل')),
     if(error!=null)Padding(padding:const EdgeInsets.all(8),child:Text(error!,style:const TextStyle(color:Colors.orangeAccent))),
     const SizedBox(height:12),FilledButton(onPressed:busy?null:(otp?verify:signIn),child:Text(busy?'در حال اتصال…':otp?'تأیید کد و ورود':'ورود با گذرواژه')),
-    TextButton(onPressed:busy?null:(otp?()=>setState(()=>otp=false):sendCode),child:Text(otp?'بازگشت':'ورود با کد ایمیل')),
+    TextButton(onPressed:busy?null:(otp?()=>setState((){otp=false;invited=false;}):sendCode),child:Text(otp?'بازگشت':'ورود با کد ایمیل')),
     const Text('ساخت حساب جدید غیرفعال است؛ فقط حساب‌های دارای نقش owner یا admin مجازند.',textAlign:TextAlign.center,style:TextStyle(color:Colors.white54,fontSize:11)),
   ])))))));
 }
