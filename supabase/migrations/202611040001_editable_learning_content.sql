@@ -53,6 +53,10 @@ on conflict(title_fa) do nothing;
 create or replace function private.guard_caracal_publish_flag()
 returns trigger language plpgsql set search_path='' as $$
 begin
+  -- Trusted SQL migrations and seed operations have no end-user JWT.
+  if auth.uid() is null then
+    return new;
+  end if;
   if not private.has_caracal_permission('publish_content') then
     if tg_op='INSERT' then
       new.is_published:=false;
