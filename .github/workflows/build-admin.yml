@@ -70,8 +70,7 @@ jobs:
                   original = path.read_text()
               except (UnicodeDecodeError, OSError):
                   continue
-              updated = re.sub(r"(?m)^(\s*compileSdkVersion\s+)\\d+\s*$", r"\g<1>36", original)
-              updated = re.sub(r"(?m)^(\s*compileSdk\s*=\s*)\\d+\s*$", r"\g<1>36", updated)
+              updated = re.sub(r"(?m)^(\s*compileSdk(?:Version)?\s*=?\s*)\d+\s*$", r"\g<1>36", original)
               if updated != original:
                   path.write_text(updated)
                   changed.append(str(path))
