@@ -153,6 +153,7 @@ class _CaracalAppState extends State<CaracalApp> {
                         english: english,
                         redline: redline,
                         animations: animations,
+                        soundEnabled: introSound,
                         onNavigate: (i) => setState(() => tab = i),
                       ),
                       LearnScreen(english: english),
@@ -322,9 +323,9 @@ class _IntroScreenState extends State<IntroScreen> with SingleTickerProviderStat
 // HOME
 
 class HomeScreen extends StatelessWidget {
-  final bool english, redline, animations;
+  final bool english, redline, animations, soundEnabled;
   final ValueChanged<int> onNavigate;
-  const HomeScreen({super.key, required this.english, required this.redline, required this.animations, required this.onNavigate});
+  const HomeScreen({super.key, required this.english, required this.redline, required this.animations, required this.soundEnabled, required this.onNavigate});
   String t(String fa, String en) => english ? en : fa;
 
   @override Widget build(BuildContext context) {
@@ -369,7 +370,7 @@ class HomeScreen extends StatelessWidget {
                 child: Text(t('حالت نمایشی', 'DEMO MODE'), style: const TextStyle(color: Color(0xFFFF6B70), fontSize: 8, fontWeight: FontWeight.w900))),
             ]),
             const SizedBox(height: 8),
-            CaracalCockpitVideo(height: compact ? 166 : 184),
+            CaracalCockpitVideo(height: compact ? 166 : 184, soundEnabled: soundEnabled),
           ]),
         ),
         const SizedBox(height: 24),
@@ -834,7 +835,8 @@ class CockpitSideInfo extends StatelessWidget {
 
 class CaracalCockpitVideo extends StatefulWidget {
   final double height;
-  const CaracalCockpitVideo({super.key, required this.height});
+  final bool soundEnabled;
+  const CaracalCockpitVideo({super.key, required this.height, required this.soundEnabled});
 
   @override
   State<CaracalCockpitVideo> createState() => _CaracalCockpitVideoState();
@@ -860,7 +862,7 @@ class _CaracalCockpitVideoState extends State<CaracalCockpitVideo> {
       // Play the clip and its original sound once. After the first pass,
       // mute it and keep the dashboard animation looping silently.
       await _controller.setLooping(false);
-      await _controller.setVolume(1.0);
+      await _controller.setVolume(widget.soundEnabled ? 1.0 : 0.0);
       _controller.addListener(_handlePlayback);
       if (!mounted) return;
       setState(() => _ready = true);
