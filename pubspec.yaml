@@ -33,6 +33,7 @@ flutter:
   assets:
     - assets/130315.png
     - assets/Intro.mp4
+    - assets/images/intro.mp4
 
 flutter_launcher_icons:
   android: true
