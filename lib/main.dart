@@ -1188,10 +1188,10 @@ Future<void> showLesson(BuildContext context, bool english, String title) async 
         final faBody = (row['body_fa'] ?? '').toString().trim();
         final enBody = (row['body_en'] ?? '').toString().trim();
         if (faBody.isNotEmpty) {
-          points = faBody.split(RegExp(r'\\r?\\n+')).where((x) => x.trim().isNotEmpty).toList();
+          points = faBody.split(RegExp(r'\r?\n+')).where((x) => x.trim().isNotEmpty).toList();
         }
         if (enBody.isNotEmpty) {
-          englishPoints = enBody.split(RegExp(r'\\r?\\n+')).where((x) => x.trim().isNotEmpty).toList();
+          englishPoints = enBody.split(RegExp(r'\r?\n+')).where((x) => x.trim().isNotEmpty).toList();
         }
       }
     } catch (_) {
