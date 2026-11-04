@@ -444,20 +444,26 @@ class HomeScreen extends StatelessWidget {
                 boxShadow: const [BoxShadow(color: Colors.black, blurRadius: 14, spreadRadius: 2, offset: Offset(0, 5))]),
               child: Column(children: [
                 SizedBox(height: compact ? 142 : 158,
-                  child: Row(children: [
-                    Expanded(child: AnimatedGauge(redline: redline, animations: animations)),
-                    Container(width: 1, height: 108, color: Colors.white12),
-                    Expanded(child: AnimatedSpeedGauge(animations: animations)),
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                    Expanded(flex: 3, child: AnimatedGauge(redline: redline, animations: animations)),
+                    Expanded(flex: 4, child: AnimatedSpeedGauge(animations: animations)),
+                    Expanded(flex: 2, child: CockpitSideInfo(english: english)),
                   ])),
-                Padding(padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-                    _dialCaption(t('دور موتور', 'ENGINE RPM'), 'x1000'),
-                    _dialCaption(t('سرعت', 'VEHICLE SPEED'), 'km/h'),
-                  ])),
-                const SizedBox(height: 9),
+                const SizedBox(height: 4),
+                Row(children: [
+                  Expanded(child: _dialCaption(t('دور موتور', 'ENGINE RPM'), 'x1000')),
+                  Expanded(flex: 2, child: _dialCaption(t('سرعت خودرو', 'VEHICLE SPEED'), 'km/h')),
+                  Expanded(child: _dialCaption(t('وضعیت خودرو', 'VEHICLE STATUS'), 'LIVE DATA')),
+                ]),
+                const SizedBox(height: 7),
                 const Divider(height: 1, color: Colors.white12),
-                const SizedBox(height: 9),
-                VehicleTelemetryPanel(english: english),
+                const SizedBox(height: 6),
+                Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
+                  _statusChip(Icons.thermostat, '90°C'),
+                  _statusChip(Icons.battery_charging_full, '14.2V'),
+                  _statusChip(Icons.local_gas_station, '68%'),
+                  _statusChip(Icons.settings, 'D'),
+                ]),
               ]),
             ),
             const SizedBox(height: 10),
@@ -496,6 +502,12 @@ class HomeScreen extends StatelessWidget {
       ],
     );
   }
+
+  Widget _statusChip(IconData icon, String value) => Row(mainAxisSize: MainAxisSize.min, children: [
+    Icon(icon, color: const Color(0xFF8DABC0), size: 11),
+    const SizedBox(width: 3),
+    Text(value, style: const TextStyle(color: silver, fontSize: 9, fontWeight: FontWeight.w800)),
+  ]);
 
   Widget _dialCaption(String title, String unit) => Column(children: [
     Text(title, style: const TextStyle(color: silver, fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 1.1)),
@@ -911,6 +923,30 @@ class SpeedGaugePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant SpeedGaugePainter oldDelegate) => oldDelegate.value != value;
 }
+class CockpitSideInfo extends StatelessWidget {
+  final bool english;
+  const CockpitSideInfo({super.key, required this.english});
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(3, 15, 4, 12),
+    child: Container(
+      decoration: BoxDecoration(color: const Color(0xFF101923), borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF43566A), width: .8)),
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 7),
+      child: Column(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+        Text(english ? 'CAR' : 'خودرو', style: const TextStyle(color: Color(0xFF75B7E5), fontSize: 8, fontWeight: FontWeight.w900)),
+        Icon(Icons.directions_car_filled_rounded, color: silver.withOpacity(.85), size: 19),
+        Text(english ? 'ENGINE' : 'موتور', style: const TextStyle(color: Colors.white60, fontSize: 7)),
+        const Text('90°C', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900)),
+        Divider(color: Colors.white12, height: 3),
+        Icon(Icons.battery_charging_full, color: Color(0xFF70C9A0), size: 15),
+        const Text('14.2V', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
+        const Text('D • 68%', style: TextStyle(color: Color(0xFF8DA6BA), fontSize: 8, fontWeight: FontWeight.w800)),
+      ]),
+    ),
+  );
+}
+
 class VehicleTelemetryPanel extends StatelessWidget {
   final bool english;
   const VehicleTelemetryPanel({super.key, required this.english});
