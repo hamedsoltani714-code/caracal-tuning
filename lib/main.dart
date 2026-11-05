@@ -1696,6 +1696,44 @@ class _OrbitalMainMenuState extends State<OrbitalMainMenu>
   late final AnimationController _orbitController;
   Timer? _activationTimer;
   bool _awakened = false;
+  String? _motivationalLine;
+  int _lastQuoteIndex = -1;
+
+  static const List<String> _faQuotes = [
+    'قدرت واقعی از تسلط آغاز می‌شود.',
+    'مرزها را بشناس؛ بعد فراتر برو.',
+    'هر جزئیات، یک قدم تا کمال.',
+    'مهارت، صدای بلندتری از ادعا دارد.',
+    'برای متفاوت بودن، دقیق‌تر حرکت کن.',
+    'دانش را به قدرت تبدیل کن.',
+    'اوج performance از کنترل می‌آید.',
+    'امروز بهتر از دیروز؛ همیشه رو به جلو.',
+    'ذهن آماده، ماشین آماده.',
+    'مسیر حرفه‌ای‌ها با یادگیری ساخته می‌شود.',
+  ];
+  static const List<String> _enQuotes = [
+    'True power begins with control.',
+    'Know the limits. Then go beyond.',
+    'Every detail moves you toward mastery.',
+    'Skill speaks louder than claims.',
+    'Precision is what sets you apart.',
+    'Turn knowledge into power.',
+    'Peak performance starts with control.',
+    'Better than yesterday. Always forward.',
+    'A prepared mind builds a better machine.',
+    'Mastery is built one lesson at a time.',
+  ];
+
+  String _nextMotivationalLine() {
+    final quotes = widget.english ? _enQuotes : _faQuotes;
+    if (quotes.length == 1) return quotes.first;
+    var next = math.Random().nextInt(quotes.length);
+    while (next == _lastQuoteIndex) {
+      next = math.Random().nextInt(quotes.length);
+    }
+    _lastQuoteIndex = next;
+    return quotes[next];
+  }
 
   @override
   void initState() {
@@ -1708,11 +1746,14 @@ class _OrbitalMainMenuState extends State<OrbitalMainMenu>
 
   void _beginLongPress() {
     _activationTimer?.cancel();
-    // Flutter's long-press recognizer waits 500 ms; this extra delay makes
-    // the hidden interaction activate at roughly 1.2 seconds.
-    _activationTimer = Timer(const Duration(milliseconds: 700), () {
+    // Flutter's long-press recognizer starts at about 500 ms. Add one
+    // second so the full hold-to-awaken gesture takes approximately 1.5 s.
+    _activationTimer = Timer(const Duration(milliseconds: 1000), () {
       if (!mounted) return;
-      setState(() => _awakened = true);
+      setState(() {
+        _awakened = true;
+        _motivationalLine = _nextMotivationalLine();
+      });
       HapticFeedback.heavyImpact();
       _orbitController.repeat();
     });
@@ -1723,6 +1764,7 @@ class _OrbitalMainMenuState extends State<OrbitalMainMenu>
     _activationTimer = null;
     if (!_awakened) return;
     _orbitController.stop();
+    _motivationalLine = null;
     _orbitController
         .animateBack(
           0,
@@ -1845,9 +1887,7 @@ class _OrbitalMainMenuState extends State<OrbitalMainMenu>
                       opacity: _awakened ? 1 : .62,
                       duration: const Duration(milliseconds: 250),
                       child: Text(
-                        _awakened
-                            ? (english ? 'CARACAL AWAKENED' : 'بیداری کاراکال')
-                            : (english ? 'HOLD TO AWAKEN' : 'برای بیداری لمس طولانی کن'),
+                        _awakened ? (_motivationalLine ?? '') : '',
                         textAlign: TextAlign.center,
                         maxLines: 1,
                         style: TextStyle(
