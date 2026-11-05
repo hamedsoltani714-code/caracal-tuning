@@ -1390,6 +1390,8 @@ class _LearnScreenState extends State<LearnScreen> {
       'settings_applications': Icons.settings_applications, 'sensors': Icons.sensors,
       'menu_book': Icons.menu_book, 'calculate': Icons.calculate,
       'smart_toy': Icons.smart_toy, 'quiz': Icons.quiz,
+      'video_library': Icons.video_library, 'dashboard': Icons.dashboard_customize,
+      'local_gas_station': Icons.local_gas_station, 'car_repair': Icons.car_repair,
     };
     return icons[key] ?? Icons.auto_stories;
   }
