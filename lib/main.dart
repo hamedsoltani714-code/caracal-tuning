@@ -614,8 +614,9 @@ class GaugePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (size.isEmpty) return;
-    final center = Offset(size.width / 2, size.height * .77);
-    final radius = math.min(size.width * .405, size.height * .68);
+    final center = Offset(size.width / 2, size.height * .91);
+    // Fit the full upper semicircular dial inside the available dashboard area.
+    final radius = math.min(size.width * .435, size.height * .88);
     const start = math.pi * 1.12;
     const sweep = math.pi * .76;
     final rect = Rect.fromCircle(center: center, radius: radius);
@@ -715,8 +716,11 @@ class GaugePainter extends CustomPainter {
         ..strokeWidth = 18..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10)
         ..strokeCap = StrokeCap.round);
     }
-    canvas.drawLine(center, needleEnd, Paint()..color = const Color(0xFFFF3942)
-      ..strokeWidth = 4.2..strokeCap = StrokeCap.round);
+    canvas.drawLine(center, needleEnd, Paint()..color = const Color(0xFFF4F6F8)
+      ..strokeWidth = 4.6..strokeCap = StrokeCap.round);
+    // Bright white needle highlight, like a real instrument cluster.
+    canvas.drawLine(center, needleEnd, Paint()..color = Colors.white.withOpacity(.72)
+      ..strokeWidth = 1.25..strokeCap = StrokeCap.round);
     canvas.drawCircle(center, 10, Paint()..shader = const RadialGradient(
       colors: [Color(0xFFE9EDF1), Color(0xFF565E68), Color(0xFF171A1E)],
     ).createShader(Rect.fromCircle(center: center, radius: 10)));
