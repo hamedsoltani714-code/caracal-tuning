@@ -27,7 +27,7 @@ export default function AdminPage(){
  async function act(fn:()=>Promise<void>){setBusy(true);setMessage("");try{await fn()}catch(e){setMessage(err(e))}finally{setBusy(false)}}
  async function signIn(){await act(async()=>{const {error}=await db().auth.signInWithPassword({email,password});if(error)throw error})}
  async function sendCode(){await act(async()=>{const {error}=await db().auth.signInWithOtp({email,options:{shouldCreateUser:false}});if(error)throw error;setOtpSent(true);setMessage("کد ورود ارسال شد.")})}
- async function verifyCode(){await act(async()=>{if(inviteActivation&&newPassword.length<8)throw new Error("رمز جدید باید حداقل ۸ نویسه باشد.");const {error}=await db().auth.verifyOtp({email,token:code,type:inviteActivation?"invite":"email"});if(error)throw error;if(inviteActivation){const {error:passwordError}=await db().auth.updateUser({password:newPassword});if(passwordError)throw passwordError;setInviteActivation(false);setNewPassword("");}})}
+ async function verifyCode(){await act(async()=>{if(inviteActivation&&newPassword.length<8)throw new Error("رمز جدید باید حداقل ۸ نویسه باشد.");const {error}=await db().auth.verifyOtp({email,token:code,type:"email"});if(error)throw error;if(inviteActivation){const {error:passwordError}=await db().auth.updateUser({password:newPassword});if(passwordError)throw passwordError;setInviteActivation(false);setNewPassword("");}})}
  async function signOut(){await db().auth.signOut();setSession(null)}
  async function refresh(){if(profile)await act(()=>loadData(profile))}
  async function setBookingStatus(id:number,status:string){await act(async()=>{const {error}=await db().from("booking_requests").update({status}).eq("id",id);if(error)throw error;await refresh()})}
