@@ -120,11 +120,12 @@ Deno.serve(async (req) => {
     }
 
     if (!targetUser) {
-      const { data, error } =
-        await adminClient.auth.admin.inviteUserByEmail(email);
-
+      const { data, error } = await adminClient.auth.admin.createUser({
+        email,
+        password: crypto.randomUUID(),
+        email_confirm: false,
+      });
       if (error) throw error;
-
       targetUser = data.user;
     }
 
@@ -143,9 +144,16 @@ Deno.serve(async (req) => {
 
     if (profileError) throw profileError;
 
+    // Send a one-time email code. The admin must verify it and set a personal password.
+    const { error: otpError } = await authClient.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: false },
+    });
+    if (otpError) throw otpError;
+
     return json({
       success: true,
-      message: "Administrator created successfully.",
+      message: "Administrator created and one-time activation code sent.",
       email,
       permissions,
     });
