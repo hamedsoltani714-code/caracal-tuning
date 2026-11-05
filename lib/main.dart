@@ -371,7 +371,7 @@ class HomeScreen extends StatelessWidget {
                 child: Text(t('حالت نمایشی', 'DEMO MODE'), style: const TextStyle(color: Color(0xFFFF6B70), fontSize: 8, fontWeight: FontWeight.w900))),
             ]),
             const SizedBox(height: 8),
-            CaracalCockpitVideo(height: compact ? 166 : 184, soundEnabled: soundEnabled),
+            SizedBox(height: compact ? 174 : 194, width: double.infinity, child: Center(child: AnimatedGauge(redline: redline, animations: animations))),
           ]),
         ),
         const SizedBox(height: 24),
@@ -513,7 +513,7 @@ class _AnimatedGaugeState extends State<AnimatedGauge>
     controller = AnimationController(
       vsync: this,
       duration: Duration(
-        milliseconds: widget.intro ? 4000 : 3200,
+        milliseconds: widget.intro ? 4200 : 3800,
       ),
     );
 
@@ -525,7 +525,7 @@ class _AnimatedGaugeState extends State<AnimatedGauge>
         ).chain(
           CurveTween(curve: Curves.easeOutCubic),
         ),
-        weight: 72,
+        weight: 68,
       ),
       TweenSequenceItem(
         tween: Tween<double>(
@@ -534,7 +534,7 @@ class _AnimatedGaugeState extends State<AnimatedGauge>
         ).chain(
           CurveTween(curve: Curves.easeInOut),
         ),
-        weight: 28,
+        weight: 32,
       ),
     ]).animate(controller);
 
@@ -589,8 +589,8 @@ class GaugePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (size.isEmpty) return;
-    final center = Offset(size.width / 2, size.height * .76);
-    final radius = math.min(size.width * .405, size.height * .66);
+    final center = Offset(size.width / 2, size.height * .82);
+    final radius = math.min(size.width * .405, size.height * .72);
     const start = math.pi * 1.12;
     const sweep = math.pi * .76;
     final rect = Rect.fromCircle(center: center, radius: radius);
