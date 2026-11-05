@@ -1682,13 +1682,68 @@ class OnlineLessonDetailScreen extends StatelessWidget {
 }
 
 // ORBITAL MAIN MENU — interactive planets around the CARACAL core.
-class OrbitalMainMenu extends StatelessWidget {
+class OrbitalMainMenu extends StatefulWidget {
   final bool english;
   final ValueChanged<int> onNavigate;
   const OrbitalMainMenu({super.key, required this.english, required this.onNavigate});
 
   @override
+  State<OrbitalMainMenu> createState() => _OrbitalMainMenuState();
+}
+
+class _OrbitalMainMenuState extends State<OrbitalMainMenu>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _orbitController;
+  Timer? _activationTimer;
+  bool _awakened = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _orbitController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2800),
+    );
+  }
+
+  void _beginLongPress() {
+    _activationTimer?.cancel();
+    // Flutter's long-press recognizer waits 500 ms; this extra delay makes
+    // the hidden interaction activate at roughly 1.2 seconds.
+    _activationTimer = Timer(const Duration(milliseconds: 700), () {
+      if (!mounted) return;
+      setState(() => _awakened = true);
+      HapticFeedback.heavyImpact();
+      _orbitController.repeat();
+    });
+  }
+
+  void _endLongPress() {
+    _activationTimer?.cancel();
+    _activationTimer = null;
+    if (!_awakened) return;
+    _orbitController.stop();
+    _orbitController
+        .animateBack(
+          0,
+          duration: const Duration(milliseconds: 850),
+          curve: Curves.easeOutCubic,
+        )
+        .whenComplete(() {
+          if (mounted) setState(() => _awakened = false);
+        });
+  }
+
+  @override
+  void dispose() {
+    _activationTimer?.cancel();
+    _orbitController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final english = widget.english;
     final items = <_OrbitItem>[
       _OrbitItem(english ? 'LEARN' : 'آموزش', Icons.school_rounded, 1, const Offset(0, -112)),
       _OrbitItem(english ? 'ECU' : 'ریمپ و ECU', Icons.memory_rounded, 1, const Offset(105, -55)),
@@ -1697,63 +1752,197 @@ class OrbitalMainMenu extends StatelessWidget {
       _OrbitItem(english ? 'PROFILE' : 'حساب کاربری', Icons.person_rounded, 2, const Offset(-105, 65)),
       _OrbitItem(english ? 'SETTINGS' : 'تنظیمات', Icons.tune_rounded, 4, const Offset(-105, -55)),
     ];
+
     return SizedBox(
       height: 300,
       child: LayoutBuilder(builder: (context, box) {
         final center = Offset(box.maxWidth / 2, 150);
-        return Stack(children: [
-          Positioned.fill(
-            child: CustomPaint(painter: _OrbitPainter()),
-          ),
-          Positioned(
-            left: center.dx - 48, top: center.dy - 48,
-            child: Container(
-              width: 96, height: 96,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const RadialGradient(colors: [Color(0xFF515963), Color(0xFF171A1F), Color(0xFF08090B)]),
-                border: Border.all(color: silver.withOpacity(.8), width: 1.5),
-                boxShadow: [BoxShadow(color: red.withOpacity(.22), blurRadius: 25, spreadRadius: 2)],
-              ),
-              padding: const EdgeInsets.all(17),
-              child: Image.asset('assets/130315.png', fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => const Icon(Icons.pets, color: silver, size: 45)),
-            ),
-          ),
-          for (final item in items)
-            Positioned(
-              left: center.dx + item.offset.dx - 36,
-              top: center.dy + item.offset.dy - 36,
-              child: Semantics(
-                button: true,
-                label: item.label,
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: () => onNavigate(item.tab),
-                  child: Container(
-                    width: 72, height: 72,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
-                        colors: [Color(0xFF454C55), Color(0xFF171A1F), Color(0xFF090A0C)]),
-                      border: Border.all(color: const Color(0xFF929BA5), width: 1.1),
-                      boxShadow: const [BoxShadow(color: Colors.black87, blurRadius: 12, offset: Offset(0, 5))],
+        return AnimatedBuilder(
+          animation: _orbitController,
+          builder: (context, _) {
+            final phase = _orbitController.value;
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: _OrbitPainter(
+                      phase: phase,
+                      awakened: _awakened,
                     ),
-                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Icon(item.icon, color: item.tab == 1 ? red : silver, size: 23),
-                      const SizedBox(height: 4),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 3),
-                        child: Text(item.label, maxLines: 1, overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Colors.white)),
-                      ),
-                    ]),
                   ),
                 ),
-              ),
-            ),
-        ]);
+                Positioned(
+                  left: center.dx - 53,
+                  top: center.dy - 53,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onLongPressStart: (_) => _beginLongPress(),
+                    onLongPressEnd: (_) => _endLongPress(),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 420),
+                      curve: Curves.easeOutCubic,
+                      width: 106,
+                      height: 106,
+                      padding: EdgeInsets.all(_awakened ? 12 : 17),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: const RadialGradient(
+                          colors: [
+                            Color(0xFF68727E),
+                            Color(0xFF242A31),
+                            Color(0xFF08090B),
+                          ],
+                        ),
+                        border: Border.all(
+                          color: _awakened
+                              ? const Color(0xFFE8F1FA)
+                              : silver.withOpacity(.85),
+                          width: _awakened ? 2.4 : 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFB9D4EF)
+                                .withOpacity(_awakened ? .65 : .16),
+                            blurRadius: _awakened ? 42 : 22,
+                            spreadRadius: _awakened ? 7 : 1,
+                          ),
+                          if (_awakened)
+                            BoxShadow(
+                              color: red.withOpacity(.35),
+                              blurRadius: 34,
+                              spreadRadius: 2,
+                            ),
+                        ],
+                      ),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.asset(
+                            'assets/130315.png',
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) => const Icon(
+                              Icons.pets,
+                              color: silver,
+                              size: 45,
+                            ),
+                          ),
+                          if (_awakened)
+                            CustomPaint(
+                              painter: _CaracalEnergyPainter(progress: phase),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: center.dx - 78,
+                  top: center.dy + 57,
+                  width: 156,
+                  child: IgnorePointer(
+                    child: AnimatedOpacity(
+                      opacity: _awakened ? 1 : .62,
+                      duration: const Duration(milliseconds: 250),
+                      child: Text(
+                        _awakened
+                            ? (english ? 'CARACAL AWAKENED' : 'بیداری کاراکال')
+                            : (english ? 'HOLD TO AWAKEN' : 'برای بیداری لمس طولانی کن'),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        style: TextStyle(
+                          color: _awakened ? Colors.white : silver,
+                          fontSize: _awakened ? 9 : 8,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.15,
+                          shadows: [
+                            Shadow(
+                              color: const Color(0xFFB9D4EF)
+                                  .withOpacity(_awakened ? .9 : .25),
+                              blurRadius: _awakened ? 12 : 4,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                for (final item in items)
+                  Positioned(
+                    left: center.dx + item.offset.dx - 36,
+                    top: center.dy + item.offset.dy - 36,
+                    child: Semantics(
+                      button: true,
+                      label: item.label,
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: () => widget.onNavigate(item.tab),
+                        child: Container(
+                          width: 72,
+                          height: 72,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Color(0xFF454C55),
+                                Color(0xFF171A1F),
+                                Color(0xFF090A0C),
+                              ],
+                            ),
+                            border: Border.all(
+                              color: const Color(0xFF929BA5),
+                              width: 1.1,
+                            ),
+                            boxShadow: [
+                              const BoxShadow(
+                                color: Colors.black87,
+                                blurRadius: 12,
+                                offset: Offset(0, 5),
+                              ),
+                              if (_awakened)
+                                BoxShadow(
+                                  color: const Color(0xFFB9D4EF)
+                                      .withOpacity(.30),
+                                  blurRadius: 20,
+                                  spreadRadius: 1,
+                                ),
+                            ],
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                item.icon,
+                                color: item.tab == 1 ? red : silver,
+                                size: 23,
+                              ),
+                              const SizedBox(height: 4),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 3),
+                                child: Text(
+                                  item.label,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        );
       }),
     );
   }
@@ -1768,21 +1957,135 @@ class _OrbitItem {
 }
 
 class _OrbitPainter extends CustomPainter {
+  final double phase;
+  final bool awakened;
+  const _OrbitPainter({required this.phase, required this.awakened});
+
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, 150);
-    final p = Paint()..style = PaintingStyle.stroke..strokeWidth = 1
-      ..color = const Color(0x667E8995);
-    canvas.drawCircle(center, 78, p);
-    p..color = const Color(0x447E8995)..strokeWidth = 1.2;
-    canvas.drawOval(Rect.fromCenter(center: center, width: 270, height: 220), p);
-    p..color = const Color(0x22FF3038)..strokeWidth = 1;
-    canvas.drawOval(Rect.fromCenter(center: center, width: 300, height: 265), p);
-    final glow = Paint()..color = const Color(0x44FF3038)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 16);
-    canvas.drawCircle(center, 5, glow);
+    final intensity = awakened ? 1.0 : .48;
+    final silverPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = awakened ? 1.65 : 1.0
+      ..color = const Color(0xFF9BA8B6).withOpacity(intensity * .62);
+
+    canvas.drawCircle(center, 78, silverPaint);
+
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    canvas.rotate(awakened ? phase * math.pi * 2 : -.12);
+    canvas.translate(-center.dx, -center.dy);
+    canvas.drawOval(
+      Rect.fromCenter(center: center, width: 270, height: 220),
+      silverPaint,
+    );
+    canvas.restore();
+
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    canvas.rotate(awakened ? -phase * math.pi * 1.35 : .18);
+    canvas.translate(-center.dx, -center.dy);
+    final outer = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = awakened ? 1.45 : 1
+      ..color = const Color(0xFFFF4650).withOpacity(
+        awakened ? .48 : .13,
+      );
+    canvas.drawOval(
+      Rect.fromCenter(center: center, width: 300, height: 265),
+      outer,
+    );
+    canvas.restore();
+
+    final orbitGlow = Paint()
+      ..color = const Color(0xFFDAE9F8).withOpacity(awakened ? .60 : .15)
+      ..maskFilter = MaskFilter.blur(
+        BlurStyle.normal,
+        awakened ? 13 : 7,
+      );
+    canvas.drawCircle(center, awakened ? 12 : 6, orbitGlow);
+
+    for (var i = 0; i < 6; i++) {
+      final angle = (math.pi * 2 * i / 6) +
+          (awakened ? phase * math.pi * 2 : -.35);
+      final rx = 135.0;
+      final ry = 110.0;
+      final point = Offset(
+        center.dx + math.cos(angle) * rx,
+        center.dy + math.sin(angle) * ry,
+      );
+      final glow = Paint()
+        ..color = const Color(0xFFDAE9F8)
+            .withOpacity(awakened ? .55 : .12)
+        ..maskFilter = MaskFilter.blur(
+          BlurStyle.normal,
+          awakened ? 9 : 4,
+        );
+      canvas.drawCircle(point, awakened ? 7 : 4, glow);
+      canvas.drawCircle(
+        point,
+        awakened ? 3.2 : 2,
+        Paint()..color = awakened ? Colors.white : silver,
+      );
+    }
+
+    if (awakened) {
+      final rays = Paint()
+        ..color = const Color(0xFFDAE9F8).withOpacity(.24)
+        ..strokeWidth = 1;
+      for (var i = 0; i < 24; i++) {
+        final angle = math.pi * 2 * i / 24 + phase * math.pi * 2;
+        final inner = 88.0;
+        final outerRadius = i.isEven ? 102.0 : 95.0;
+        canvas.drawLine(
+          Offset(center.dx + math.cos(angle) * inner,
+              center.dy + math.sin(angle) * inner),
+          Offset(center.dx + math.cos(angle) * outerRadius,
+              center.dy + math.sin(angle) * outerRadius),
+          rays,
+        );
+      }
+    }
   }
+
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _OrbitPainter oldDelegate) =>
+      oldDelegate.phase != phase || oldDelegate.awakened != awakened;
+}
+
+class _CaracalEnergyPainter extends CustomPainter {
+  final double progress;
+  const _CaracalEnergyPainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final sweep = (progress * math.pi * 2) - math.pi / 2;
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.2
+      ..strokeCap = StrokeCap.round
+      ..shader = const SweepGradient(
+        colors: [
+          Colors.transparent,
+          Color(0xFFEAF5FF),
+          Color(0xFF9EB8D0),
+          Colors.transparent,
+        ],
+      ).createShader(Offset.zero & size);
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: size.width * .43),
+      sweep,
+      math.pi * .82,
+      false,
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _CaracalEnergyPainter oldDelegate) =>
+      oldDelegate.progress != progress;
 }
 
 // GARAGE / ACCOUNT / ADMIN
