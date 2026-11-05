@@ -149,7 +149,19 @@ Deno.serve(async (req) => {
       email,
       options: { shouldCreateUser: false },
     });
-    if (otpError) throw otpError;
+    if (otpError) {
+      const message = String(otpError.message || "");
+      if (otpError.status === 429 || /rate limit|too many requests/i.test(message)) {
+        return json({
+          success: true,
+          email_sent: false,
+          code: "EMAIL_RATE_LIMIT",
+          email,
+          message: "حساب مدیر ساخته شد، اما سرویس ایمیل به محدودیت ارسال برخورد کرده است. پس از پایان محدودیت، مدیر باید از صفحه ورود «ارسال کد فعال‌سازی» را بزند.",
+        });
+      }
+      throw otpError;
+    }
 
     return json({
       success: true,
