@@ -383,11 +383,7 @@ class HomeScreen extends StatelessWidget {
                       soundEnabled: soundEnabled,
                     ),
                   ),
-                  Positioned.fill(
-                    child: Center(
-                      child: AnimatedGauge(redline: redline, animations: animations),
-                    ),
-                  ),
+                  // RPM needle and numeric gauge intentionally removed; keep the cockpit video visible.
                 ],
               ),
             ),
@@ -1421,7 +1417,8 @@ class _LearnScreenState extends State<LearnScreen> {
       if (!mounted) return;
       setState(() => onlineLessons = List<Map<String, dynamic>>.from(rows));
     } catch (e) {
-      if (mounted) setState(() => onlineError = e.toString());
+      // Offline/network failures should not produce long orange/yellow error banners.
+      if (mounted) setState(() => onlineError = null);
     } finally {
       if (mounted) setState(() => loadingOnline = false);
     }
