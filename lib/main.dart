@@ -377,16 +377,10 @@ class HomeScreen extends StatelessWidget {
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  Positioned(
-                    left: 0,
-                    top: 0,
-                    child: Opacity(
-                      opacity: 0,
-                      child: SizedBox(
-                        width: 1,
-                        height: 1,
-                        child: CaracalCockpitVideo(height: 1, soundEnabled: soundEnabled),
-                      ),
+                  Positioned.fill(
+                    child: CaracalCockpitVideo(
+                      height: compact ? 174 : 194,
+                      soundEnabled: soundEnabled,
                     ),
                   ),
                   Positioned.fill(
