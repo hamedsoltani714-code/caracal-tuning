@@ -1267,10 +1267,20 @@ class NotificationCenterDialog extends StatelessWidget {
 
   Future<List<Map<String, dynamic>>> load() async {
     if (!supabaseConfigured) return [];
-    final rows = await Supabase.instance.client
+    final client = Supabase.instance.client;
+    final userId = client.auth.currentUser?.id;
+    var request = client
         .from('app_notifications')
-        .select('id,title_fa,title_en,body_fa,body_en,created_at')
-        .eq('is_published', true)
+        .select('id,title_fa,title_en,body_fa,body_en,target_user_id,is_published,created_at')
+        .eq('is_published', true);
+    // Match the database visibility rules explicitly: global announcements for everyone,
+    // plus user-targeted announcements only for the signed-in account.
+    if (userId == null) {
+      request = request.isFilter('target_user_id', null);
+    } else {
+      request = request.or('target_user_id.is.null,target_user_id.eq.$userId');
+    }
+    final rows = await request
         .order('created_at', ascending: false)
         .limit(50);
     return List<Map<String, dynamic>>.from(rows);
