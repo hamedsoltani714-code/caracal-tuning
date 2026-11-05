@@ -371,7 +371,32 @@ class HomeScreen extends StatelessWidget {
                 child: Text(t('حالت نمایشی', 'DEMO MODE'), style: const TextStyle(color: Color(0xFFFF6B70), fontSize: 8, fontWeight: FontWeight.w900))),
             ]),
             const SizedBox(height: 8),
-            SizedBox(height: compact ? 174 : 194, width: double.infinity, child: Center(child: AnimatedGauge(redline: redline, animations: animations))),
+            SizedBox(
+              height: compact ? 174 : 194,
+              width: double.infinity,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    child: Opacity(
+                      opacity: 0,
+                      child: SizedBox(
+                        width: 1,
+                        height: 1,
+                        child: CaracalCockpitVideo(height: 1, soundEnabled: soundEnabled),
+                      ),
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: Center(
+                      child: AnimatedGauge(redline: redline, animations: animations),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ]),
         ),
         const SizedBox(height: 24),
@@ -520,8 +545,8 @@ class _AnimatedGaugeState extends State<AnimatedGauge>
     rpm = TweenSequence<double>([
       TweenSequenceItem(
         tween: Tween<double>(
-          begin: 500,
-          end: 8000,
+          begin: 900,
+          end: 7600,
         ).chain(
           CurveTween(curve: Curves.easeOutCubic),
         ),
@@ -529,8 +554,8 @@ class _AnimatedGaugeState extends State<AnimatedGauge>
       ),
       TweenSequenceItem(
         tween: Tween<double>(
-          begin: 8000,
-          end: 900,
+          begin: 7600,
+          end: 950,
         ).chain(
           CurveTween(curve: Curves.easeInOut),
         ),
@@ -589,8 +614,8 @@ class GaugePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (size.isEmpty) return;
-    final center = Offset(size.width / 2, size.height * .82);
-    final radius = math.min(size.width * .405, size.height * .72);
+    final center = Offset(size.width / 2, size.height * .77);
+    final radius = math.min(size.width * .405, size.height * .68);
     const start = math.pi * 1.12;
     const sweep = math.pi * .76;
     final rect = Rect.fromCircle(center: center, radius: radius);
