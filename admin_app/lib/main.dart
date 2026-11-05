@@ -63,8 +63,8 @@ class _LoginPageState extends State<LoginPage>{
   }
   Future<void> signIn()=>run(()async{final e=email.text.trim().toLowerCase();if(!e.contains('@')||pass.text.length<6)throw Exception('ایمیل معتبر و گذرواژه را وارد کن.');await db.auth.signInWithPassword(email:e,password:pass.text);});
   Future<void> sendCode()=>run(()async{final e=email.text.trim().toLowerCase();if(!e.contains('@'))throw Exception('ایمیل معتبر وارد کن.');await db.auth.signInWithOtp(email:e,shouldCreateUser:false);setState(()=>otp=true);});
-  Future<void> verify()=>run(()async{if(invited&&newPass.text.length<8)throw Exception('رمز جدید باید حداقل ۸ نویسه باشد.');await db.auth.verifyOTP(email:email.text.trim().toLowerCase(),token:code.text.trim(),type:invited?OtpType.invite:OtpType.email);if(invited){await db.auth.updateUser(UserAttributes(password:newPass.text));}});
-  Future<void> startInvite()=>run(()async{if(!email.text.trim().contains('@'))throw Exception('ایمیل مدیر را وارد کن.');setState((){otp=true;invited=true;});});
+  Future<void> verify()=>run(()async{if(invited&&newPass.text.length<8)throw Exception('رمز جدید باید حداقل ۸ نویسه باشد.');await db.auth.verifyOTP(email:email.text.trim().toLowerCase(),token:code.text.trim(),type:OtpType.email);if(invited){await db.auth.updateUser(UserAttributes(password:newPass.text));}});
+  Future<void> startInvite()=>run(()async{if(!email.text.trim().contains('@'))throw Exception('ایمیل مدیر را وارد کن.');await db.auth.signInWithOtp(email:email.text.trim().toLowerCase(),shouldCreateUser:false);setState((){otp=true;invited=true;});});
   @override Widget build(BuildContext context)=>Scaffold(body:Center(child:SingleChildScrollView(padding:const EdgeInsets.all(22),child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:460),child:Card(color:panel,child:Padding(padding:const EdgeInsets.all(24),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
     const Icon(Icons.pets,size:58,color:silver),const Text('CARACAL',textAlign:TextAlign.center,style:TextStyle(fontSize:28,fontWeight:FontWeight.w900,letterSpacing:5)),
     const Text('ADMIN CONTROL CENTER',textAlign:TextAlign.center,style:TextStyle(color:red,fontSize:11,letterSpacing:2)),
@@ -143,6 +143,25 @@ class _AdminHomeState extends State<AdminHome>{
     if(!owner)throw Exception('فقط مالک اجازه تغییر دسترسی دارد.');
     await db.from('profiles').update({'permissions':p}).eq('id',id).eq('role','admin');
   });
+  Future<void> deleteAdmin(String id) async {
+    if(!owner) throw Exception('فقط مالک اصلی اجازه حذف مدیر را دارد.');
+    final target=users.firstWhere((u)=>u['id'].toString()==id,orElse:()=>{});
+    if(target.isEmpty || target['role']!='admin') throw Exception('حساب مدیر پیدا نشد.');
+    final response=await db.functions.invoke('delete-admin',body:{'user_id':id});
+    final data=response.data;
+    if(response.status<200||response.status>=300||(data is Map&&data['success']==false)){
+      throw Exception(data is Map?(data['error']??'حذف مدیر انجام نشد.').toString():'حذف مدیر انجام نشد.');
+    }
+    await refresh();
+  }
+  Future<void> confirmDeleteAdmin(Map<String,dynamic> user) async {
+    final ok=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(
+      title:const Text('حذف مدیر'),
+      content:Text('مدیر با ایمیل ${user['email']} حذف شود؟ دسترسی ورود این حساب نیز لغو خواهد شد.'),
+      actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('انصراف')),FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('حذف مدیر'))],
+    ));
+    if(ok==true) await act(()=>deleteAdmin(user['id'].toString()));
+  }
   @override Widget build(BuildContext context){
     final pages=<({String name,IconData icon,Widget page})>[
       (name:'خانه',icon:Icons.dashboard_outlined,page:overview()),
@@ -346,7 +365,7 @@ class _AdminHomeState extends State<AdminHome>{
   Widget adminsPage()=>ListView(padding:const EdgeInsets.all(14),children:[
     const Text('مدیریت مدیران',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900)),
     card(InviteAdmin(onInvite:invite)),
-    ...users.where((u)=>u['role']=='admin').map((u)=>AdminPermissions(user:u,onSave:savePermissions)),
+    ...users.where((u)=>u['role']=='admin').map((u)=>AdminPermissions(user:u,onSave:savePermissions,onDelete:confirmDeleteAdmin)),
   ]);
 }
 class InviteAdmin extends StatefulWidget {
@@ -410,8 +429,8 @@ class _InviteAdminState extends State<InviteAdmin> {
   );
 }
 class AdminPermissions extends StatefulWidget{
-  final Map<String,dynamic> user;final Future<void> Function(String,Map<String,dynamic>) onSave;
-  const AdminPermissions({super.key,required this.user,required this.onSave});
+  final Map<String,dynamic> user;final Future<void> Function(String,Map<String,dynamic>) onSave;final Future<void> Function(Map<String,dynamic>) onDelete;
+  const AdminPermissions({super.key,required this.user,required this.onSave,required this.onDelete});
   @override State<AdminPermissions> createState()=>_AdminPermissionsState();
 }
 class _AdminPermissionsState extends State<AdminPermissions>{
@@ -420,6 +439,6 @@ class _AdminPermissionsState extends State<AdminPermissions>{
   @override Widget build(BuildContext context)=>Container(margin:const EdgeInsets.only(bottom:10),padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:panel,borderRadius:BorderRadius.circular(16)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
     Text(widget.user['role']=='owner'?'مالک اصلی':(widget.user['email']?.toString()??''),style:const TextStyle(fontWeight:FontWeight.bold)),
     for(final e in {'manage_content':'مدیریت محتوا','publish_content':'انتشار محتوا','manage_users':'مدیریت کاربران','manage_bookings':'مدیریت نوبت‌ها','manage_memberships':'مدیریت اشتراک‌ها','manage_notifications':'مدیریت اعلان‌ها'}.entries)CheckboxListTile(contentPadding:EdgeInsets.zero,dense:true,value:p[e.key]==true,onChanged:(v)=>setState(()=>p[e.key]=v??false),title:Text(e.value)),
-    Align(alignment:Alignment.centerLeft,child:OutlinedButton(onPressed:()=>widget.onSave(widget.user['id'].toString(),p),child:const Text('ذخیره دسترسی‌ها'))),
+    Wrap(spacing:8,children:[OutlinedButton(onPressed:()=>widget.onSave(widget.user['id'].toString(),p),child:const Text('ذخیره دسترسی‌ها')),OutlinedButton.icon(onPressed:()=>widget.onDelete(widget.user),icon:const Icon(Icons.delete_outline,color:red),label:const Text('حذف مدیر',style:TextStyle(color:red))) ]),
   ]));
 }
