@@ -139,3 +139,18 @@ on conflict (slug) do update set
   model_fa=excluded.model_fa, model_en=excluded.model_en, body_type=excluded.body_type,
   data_status='model-index-only', is_verified=false, is_published=true,
   sort_order=excluded.sort_order, updated_at=now();
+
+-- Enforce the separate publish permission on both catalog tables.
+drop trigger if exists guard_vehicle_catalog_publish_flag on public.vehicle_catalog;
+create trigger guard_vehicle_catalog_publish_flag
+  before insert or update of is_published on public.vehicle_catalog
+  for each row execute function private.guard_caracal_publish_flag();
+drop trigger if exists guard_catalog_resources_publish_flag on public.catalog_resources;
+create trigger guard_catalog_resources_publish_flag
+  before insert or update of is_published on public.catalog_resources
+  for each row execute function private.guard_caracal_publish_flag();
+
+-- Cover foreign keys used for cleanup and joins.
+create index if not exists vehicle_catalog_created_by_idx on public.vehicle_catalog(created_by);
+create index if not exists catalog_resources_lesson_id_idx on public.catalog_resources(lesson_id);
+create index if not exists catalog_resources_created_by_idx on public.catalog_resources(created_by);
