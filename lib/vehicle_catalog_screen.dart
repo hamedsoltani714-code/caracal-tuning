@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 const _catalogBg = Color(0xFF08090B);
 const _catalogPanel = Color(0xFF15171B);
@@ -87,7 +88,7 @@ class _VehicleCatalogScreenState extends State<VehicleCatalogScreen> {
     try {
       final rows = await Supabase.instance.client
           .from('vehicle_catalog')
-          .select('slug,make_id,make_fa,make_en,model_fa,model_en,body_type,year_start,year_end,summary_fa,summary_en,data_status,is_verified')
+          .select('id,slug,make_id,make_fa,make_en,model_fa,model_en,body_type,year_start,year_end,summary_fa,summary_en,data_status,is_verified')
           .eq('is_published', true)
           .order('sort_order');
 
@@ -95,6 +96,7 @@ class _VehicleCatalogScreenState extends State<VehicleCatalogScreen> {
         final row = Map<String, dynamic>.from(raw as Map);
         return <String, dynamic>{
           'id': row['slug'],
+          'uuid': row['id'],
           'makeId': row['make_id'],
           'model': {'fa': row['model_fa'], 'en': row['model_en']},
           'bodyType': row['body_type'],
@@ -288,41 +290,82 @@ class _VehicleCatalogScreenState extends State<VehicleCatalogScreen> {
     ],
   );
 
+  Future<List<Map<String, dynamic>>> _loadVehicleResources(String vehicleId) async {
+    final client = Supabase.instance.client;
+    final rows = await client.from('catalog_resources')
+        .select('id,title_fa,title_en,description_fa,description_en,resource_type,category,storage_path,external_url,original_filename,mime_type,file_size_bytes,is_verified')
+        .eq('vehicle_id', vehicleId).eq('is_published', true).order('sort_order');
+    final resources = <Map<String, dynamic>>[];
+    for (final raw in rows as List) {
+      final item = Map<String, dynamic>.from(raw as Map);
+      String? accessUrl = (item['external_url'] ?? '').toString().trim();
+      final path = (item['storage_path'] ?? '').toString().trim();
+      if (path.isNotEmpty) {
+        accessUrl = await client.storage.from('vehicle-technical-library').createSignedUrl(path, 900);
+      }
+      item['access_url'] = accessUrl;
+      resources.add(item);
+    }
+    return resources;
+  }
+
+  Future<void> _openResource(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
   void _showVehicle(Map<String, dynamic> vehicle) {
     final model = vehicle['model'] as Map? ?? {};
     final name = (model[widget.english ? 'en' : 'fa'] ?? '').toString();
     final summary = vehicle['summary'] as Map? ?? {};
     final summaryText = (summary[widget.english ? 'en' : 'fa'] ?? '').toString();
+    final resourcesFuture = _loadVehicleResources(vehicle['uuid'].toString());
     showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: _catalogPanel,
-      isScrollControlled: true,
+      context: context, backgroundColor: _catalogPanel, isScrollControlled: true,
       builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+        child: DraggableScrollableSheet(
+          expand: false, initialChildSize: .72, minChildSize: .45, maxChildSize: .94,
+          builder: (context, scrollController) => ListView(
+            controller: scrollController, padding: const EdgeInsets.all(22),
             children: [
               Text(name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
               const SizedBox(height: 8),
-              Text(_makeName(vehicle['makeId']?.toString() ?? ''),
-                  style: const TextStyle(color: _catalogSilver)),
+              Text(_makeName(vehicle['makeId']?.toString() ?? ''), style: const TextStyle(color: _catalogSilver)),
               const SizedBox(height: 18),
               Text(summaryText.isNotEmpty ? summaryText : t(
-                  'این رکورد فعلاً فقط شامل نام و خانواده خودرو است. مشخصات فنی پس از بررسی منابع معتبر تکمیل می‌شود.',
-                  'This record currently contains only the vehicle name and model family. Technical details will be added after reliable source review.'),
-                  style: const TextStyle(height: 1.7, color: _catalogSilver)),
-              const SizedBox(height: 12),
-              Text(t('وضعیت: فهرست اولیه مدل — اطلاعات فنی هنوز تأیید نشده است.',
-                  'Status: initial model index — technical details are not yet verified.'),
-                  style: const TextStyle(fontSize: 11, color: Colors.white54, height: 1.6)),
-              const SizedBox(height: 8),
-              Align(
-                alignment: AlignmentDirectional.centerEnd,
-                child: TextButton(onPressed: () => Navigator.pop(ctx),
-                    child: Text(t('بستن', 'Close'))),
+                'این رکورد فعلاً فقط شامل نام و خانواده خودرو است. منابع آموزشی مجاز پس از بررسی اضافه می‌شوند.',
+                'This record currently contains only the vehicle name and model family. Approved learning resources will be added after review.'),
+                style: const TextStyle(height: 1.7, color: _catalogSilver)),
+              const SizedBox(height: 18),
+              Text(t('منابع و فایل‌های آموزشی', 'EDUCATIONAL RESOURCES'), style: const TextStyle(fontWeight: FontWeight.w900, letterSpacing: .6)),
+              const SizedBox(height: 10),
+              FutureBuilder<List<Map<String, dynamic>>>(
+                future: resourcesFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) return const Padding(padding: EdgeInsets.all(18), child: Center(child: CircularProgressIndicator(color: _catalogRed)));
+                  if (snapshot.hasError) return Text(t('دریافت منابع با خطا روبه‌رو شد: ', 'Could not load resources: ') + snapshot.error.toString(), style: const TextStyle(color: _catalogSilver, fontSize: 12));
+                  final resources = snapshot.data ?? [];
+                  if (resources.isEmpty) return Text(t('هنوز فایل یا مطلب آموزشی برای این خودرو ثبت نشده است.', 'No educational resources have been added for this vehicle yet.'), style: const TextStyle(color: Colors.white54, height: 1.6));
+                  return Column(children: resources.map((item) {
+                    final title = (item[widget.english ? 'title_en' : 'title_fa'] ?? '').toString();
+                    final description = (item[widget.english ? 'description_en' : 'description_fa'] ?? '').toString();
+                    final url = (item['access_url'] ?? '').toString();
+                    final rawBytes = item['file_size_bytes'];
+                    final size = rawBytes is num ? ' · ' + (rawBytes / 1048576).toStringAsFixed(1) + ' MB' : '';
+                    return Card(color: const Color(0xFF202329), child: ListTile(
+                      leading: const Icon(Icons.description_outlined, color: _catalogSilver),
+                      title: Text(title.isEmpty ? t('منبع آموزشی', 'Learning resource') : title),
+                      subtitle: Text((description.isNotEmpty ? description : (item['resource_type'] ?? '').toString()) + size, style: const TextStyle(color: _catalogSilver, fontSize: 11)),
+                      trailing: Icon(url.isNotEmpty ? Icons.open_in_new : Icons.lock_outline, color: _catalogRed),
+                      onTap: url.isEmpty ? null : () => _openResource(url),
+                    ));
+                  }).toList());
+                },
               ),
+              const SizedBox(height: 12),
+              Text(t('وضعیت: فهرست اولیه مدل — اطلاعات فنی هنوز تأیید نشده است.', 'Status: initial model index — technical details are not yet verified.'), style: const TextStyle(fontSize: 11, color: Colors.white54, height: 1.6)),
+              Align(alignment: AlignmentDirectional.centerEnd, child: TextButton(onPressed: () => Navigator.pop(ctx), child: Text(t('بستن', 'Close')))),
             ],
           ),
         ),
