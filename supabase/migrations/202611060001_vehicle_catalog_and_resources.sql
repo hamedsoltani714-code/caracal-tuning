@@ -154,3 +154,22 @@ create trigger guard_catalog_resources_publish_flag
 create index if not exists vehicle_catalog_created_by_idx on public.vehicle_catalog(created_by);
 create index if not exists catalog_resources_lesson_id_idx on public.catalog_resources(lesson_id);
 create index if not exists catalog_resources_created_by_idx on public.catalog_resources(created_by);
+
+
+-- Additional model explicitly named on the Dr Mechanic electrical-diagrams page.
+-- This records the model name only; no third-party diagram files are copied.
+insert into public.vehicle_catalog
+(slug,make_id,make_fa,make_en,model_fa,model_en,body_type,summary_fa,summary_en,
+ data_status,is_verified,is_published,source_label,source_url,license_note,sort_order)
+values
+('dena-plus','iran-khodro','ایران‌خودرو','Iran Khodro','دنا پلاس','Dena Plus','sedan',
+ 'مدل در فهرست خودروها؛ مشخصات فنی و منابع آموزشی هنوز بررسی و تکمیل نشده‌اند.',
+ 'Model index entry; technical specifications and learning resources are not yet verified.',
+ 'model-index-only',false,true,'دکتر مکانیک - صفحه نقشه‌های الکتریکی',
+ 'https://dr-mechanic.com/mapes/',
+ 'فقط نام خودرو از صفحه مرجع ثبت شده است؛ هیچ فایل یا محتوای نقشه‌ای کپی نشده است.',19)
+on conflict (slug) do update set
+ make_id=excluded.make_id, make_fa=excluded.make_fa, make_en=excluded.make_en,
+ model_fa=excluded.model_fa, model_en=excluded.model_en,
+ source_label=excluded.source_label, source_url=excluded.source_url,
+ license_note=excluded.license_note, updated_at=now();
