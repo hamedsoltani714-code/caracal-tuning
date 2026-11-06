@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-11-06",
+  "vehicles": [
+    {
+      "id": "iran-khodro-405",
+      "make": { "fa": "ایران‌خودرو", "en": "Iran Khodro" },
+      "model": { "fa": "پژو ۴۰۵", "en": "Peugeot 405" },
+      "years": [],
+      "ecuEntries": [],
+      "learningEntries": [],
+      "source": null,
+      "license": null,
+      "publicationStatus": "draft"
+    }
+  ]
+}
