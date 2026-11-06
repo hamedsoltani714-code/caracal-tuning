@@ -65,7 +65,13 @@ class _VehicleCatalogScreenState extends State<VehicleCatalogScreen> {
   }
 
   String _makeName(String id) {
-    final make = _makes.where((m) => m['id'] == id).firstOrNull;
+    Map<String, dynamic>? make;
+    for (final item in _makes) {
+      if (item['id'] == id) {
+        make = item;
+        break;
+      }
+    }
     final name = make?['name'];
     if (name is Map) return (name[widget.english ? 'en' : 'fa'] ?? '').toString();
     return '';
