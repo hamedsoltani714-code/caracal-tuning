@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:video_player/video_player.dart';
+import 'vehicle_catalog_screen.dart';
 import 'booking_admin_screens.dart';
 
 // Public Supabase project configuration. Never place a service_role key in the app.
@@ -1442,6 +1443,14 @@ class _LearnScreenState extends State<LearnScreen> {
   }
 
   void openModule(Map<String, dynamic> module) {
+    final titleFa = (module['fa'] ?? '').toString();
+    final titleEn = (module['en'] ?? '').toString().toLowerCase();
+    if (titleFa.contains('بانک اطلاعات فنی خودرو') ||
+        titleEn.contains('vehicle technical database')) {
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) =>
+        VehicleCatalogScreen(english: english)));
+      return;
+    }
     Navigator.of(context).push(MaterialPageRoute(builder: (_) =>
       ModuleDetailScreen(module: module, english: english)));
   }
