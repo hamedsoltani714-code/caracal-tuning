@@ -1,16 +1,331 @@
 {
   "schemaVersion": 1,
   "updatedAt": "2026-11-06",
+  "description": {
+    "fa": "فهرست اولیه خانواده‌های خودرویی؛ سال ساخت، تیپ، موتور و ECU تا زمان راستی‌آزمایی عمداً خالی مانده‌اند.",
+    "en": "Initial vehicle-family index. Years, trims, engines, and ECU details remain blank until verified."
+  },
+  "makes": [
+    {
+      "id": "iran-khodro",
+      "name": {
+        "fa": "ایران‌خودرو",
+        "en": "Iran Khodro"
+      }
+    },
+    {
+      "id": "saipa",
+      "name": {
+        "fa": "سایپا",
+        "en": "Saipa"
+      }
+    }
+  ],
   "vehicles": [
     {
-      "id": "iran-khodro-405",
-      "make": { "fa": "ایران‌خودرو", "en": "Iran Khodro" },
-      "model": { "fa": "پژو ۴۰۵", "en": "Peugeot 405" },
+      "id": "peugeot-405",
+      "makeId": "iran-khodro",
+      "model": {
+        "fa": "پژو ۴۰۵",
+        "en": "Peugeot 405"
+      },
+      "bodyType": "sedan",
       "years": [],
+      "engineEntries": [],
       "ecuEntries": [],
       "learningEntries": [],
       "source": null,
       "license": null,
+      "dataCompleteness": "model-index-only",
+      "publicationStatus": "draft"
+    },
+    {
+      "id": "peugeot-pars",
+      "makeId": "iran-khodro",
+      "model": {
+        "fa": "پژو پارس",
+        "en": "Peugeot Pars"
+      },
+      "bodyType": "sedan",
+      "years": [],
+      "engineEntries": [],
+      "ecuEntries": [],
+      "learningEntries": [],
+      "source": null,
+      "license": null,
+      "dataCompleteness": "model-index-only",
+      "publicationStatus": "draft"
+    },
+    {
+      "id": "samand",
+      "makeId": "iran-khodro",
+      "model": {
+        "fa": "سمند",
+        "en": "Samand"
+      },
+      "bodyType": "sedan",
+      "years": [],
+      "engineEntries": [],
+      "ecuEntries": [],
+      "learningEntries": [],
+      "source": null,
+      "license": null,
+      "dataCompleteness": "model-index-only",
+      "publicationStatus": "draft"
+    },
+    {
+      "id": "soren",
+      "makeId": "iran-khodro",
+      "model": {
+        "fa": "سورن",
+        "en": "Soren"
+      },
+      "bodyType": "sedan",
+      "years": [],
+      "engineEntries": [],
+      "ecuEntries": [],
+      "learningEntries": [],
+      "source": null,
+      "license": null,
+      "dataCompleteness": "model-index-only",
+      "publicationStatus": "draft"
+    },
+    {
+      "id": "dena",
+      "makeId": "iran-khodro",
+      "model": {
+        "fa": "دنا",
+        "en": "Dena"
+      },
+      "bodyType": "sedan",
+      "years": [],
+      "engineEntries": [],
+      "ecuEntries": [],
+      "learningEntries": [],
+      "source": null,
+      "license": null,
+      "dataCompleteness": "model-index-only",
+      "publicationStatus": "draft"
+    },
+    {
+      "id": "rana",
+      "makeId": "iran-khodro",
+      "model": {
+        "fa": "رانا",
+        "en": "Runna"
+      },
+      "bodyType": "sedan",
+      "years": [],
+      "engineEntries": [],
+      "ecuEntries": [],
+      "learningEntries": [],
+      "source": null,
+      "license": null,
+      "dataCompleteness": "model-index-only",
+      "publicationStatus": "draft"
+    },
+    {
+      "id": "peugeot-206",
+      "makeId": "iran-khodro",
+      "model": {
+        "fa": "پژو ۲۰۶",
+        "en": "Peugeot 206"
+      },
+      "bodyType": "hatchback",
+      "years": [],
+      "engineEntries": [],
+      "ecuEntries": [],
+      "learningEntries": [],
+      "source": null,
+      "license": null,
+      "dataCompleteness": "model-index-only",
+      "publicationStatus": "draft"
+    },
+    {
+      "id": "peugeot-207",
+      "makeId": "iran-khodro",
+      "model": {
+        "fa": "پژو ۲۰۷",
+        "en": "Peugeot 207"
+      },
+      "bodyType": "hatchback",
+      "years": [],
+      "engineEntries": [],
+      "ecuEntries": [],
+      "learningEntries": [],
+      "source": null,
+      "license": null,
+      "dataCompleteness": "model-index-only",
+      "publicationStatus": "draft"
+    },
+    {
+      "id": "tara",
+      "makeId": "iran-khodro",
+      "model": {
+        "fa": "تارا",
+        "en": "Tara"
+      },
+      "bodyType": "sedan",
+      "years": [],
+      "engineEntries": [],
+      "ecuEntries": [],
+      "learningEntries": [],
+      "source": null,
+      "license": null,
+      "dataCompleteness": "model-index-only",
+      "publicationStatus": "draft"
+    },
+    {
+      "id": "arisun",
+      "makeId": "iran-khodro",
+      "model": {
+        "fa": "آریسان",
+        "en": "Arisun"
+      },
+      "bodyType": "pickup",
+      "years": [],
+      "engineEntries": [],
+      "ecuEntries": [],
+      "learningEntries": [],
+      "source": null,
+      "license": null,
+      "dataCompleteness": "model-index-only",
+      "publicationStatus": "draft"
+    },
+    {
+      "id": "pride",
+      "makeId": "saipa",
+      "model": {
+        "fa": "پراید",
+        "en": "Pride"
+      },
+      "bodyType": "family",
+      "years": [],
+      "engineEntries": [],
+      "ecuEntries": [],
+      "learningEntries": [],
+      "source": null,
+      "license": null,
+      "dataCompleteness": "model-index-only",
+      "publicationStatus": "draft"
+    },
+    {
+      "id": "pride-151",
+      "makeId": "saipa",
+      "model": {
+        "fa": "پراید ۱۵۱",
+        "en": "Pride 151"
+      },
+      "bodyType": "pickup",
+      "years": [],
+      "engineEntries": [],
+      "ecuEntries": [],
+      "learningEntries": [],
+      "source": null,
+      "license": null,
+      "dataCompleteness": "model-index-only",
+      "publicationStatus": "draft"
+    },
+    {
+      "id": "tiba",
+      "makeId": "saipa",
+      "model": {
+        "fa": "تیبا",
+        "en": "Tiba"
+      },
+      "bodyType": "sedan",
+      "years": [],
+      "engineEntries": [],
+      "ecuEntries": [],
+      "learningEntries": [],
+      "source": null,
+      "license": null,
+      "dataCompleteness": "model-index-only",
+      "publicationStatus": "draft"
+    },
+    {
+      "id": "tiba-2",
+      "makeId": "saipa",
+      "model": {
+        "fa": "تیبا ۲",
+        "en": "Tiba 2"
+      },
+      "bodyType": "hatchback",
+      "years": [],
+      "engineEntries": [],
+      "ecuEntries": [],
+      "learningEntries": [],
+      "source": null,
+      "license": null,
+      "dataCompleteness": "model-index-only",
+      "publicationStatus": "draft"
+    },
+    {
+      "id": "saina",
+      "makeId": "saipa",
+      "model": {
+        "fa": "ساینا",
+        "en": "Saina"
+      },
+      "bodyType": "sedan",
+      "years": [],
+      "engineEntries": [],
+      "ecuEntries": [],
+      "learningEntries": [],
+      "source": null,
+      "license": null,
+      "dataCompleteness": "model-index-only",
+      "publicationStatus": "draft"
+    },
+    {
+      "id": "quick",
+      "makeId": "saipa",
+      "model": {
+        "fa": "کوییک",
+        "en": "Quick"
+      },
+      "bodyType": "hatchback",
+      "years": [],
+      "engineEntries": [],
+      "ecuEntries": [],
+      "learningEntries": [],
+      "source": null,
+      "license": null,
+      "dataCompleteness": "model-index-only",
+      "publicationStatus": "draft"
+    },
+    {
+      "id": "shahin",
+      "makeId": "saipa",
+      "model": {
+        "fa": "شاهین",
+        "en": "Shahin"
+      },
+      "bodyType": "sedan",
+      "years": [],
+      "engineEntries": [],
+      "ecuEntries": [],
+      "learningEntries": [],
+      "source": null,
+      "license": null,
+      "dataCompleteness": "model-index-only",
+      "publicationStatus": "draft"
+    },
+    {
+      "id": "atlas",
+      "makeId": "saipa",
+      "model": {
+        "fa": "اطلس",
+        "en": "Atlas"
+      },
+      "bodyType": "hatchback",
+      "years": [],
+      "engineEntries": [],
+      "ecuEntries": [],
+      "learningEntries": [],
+      "source": null,
+      "license": null,
+      "dataCompleteness": "model-index-only",
       "publicationStatus": "draft"
     }
   ]
