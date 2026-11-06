@@ -1406,13 +1406,22 @@ class _LearnScreenState extends State<LearnScreen> {
           .eq('is_published', true)
           .order('sort_order');
       if (!mounted) return;
-      setState(() {
-        modules = List<Map<String, dynamic>>.from(rows).map((row) => <String, dynamic>{
-          'fa': row['title_fa'] ?? '', 'en': row['title_en'] ?? '',
-          'descFa': row['description_fa'] ?? '', 'descEn': row['description_en'] ?? '',
-          'group': row['category'] ?? 'learn', 'icon': _moduleIcon(row['icon_key']),
-        }).toList();
-      });
+      final online = List<Map<String, dynamic>>.from(rows).map((row) => <String, dynamic>{
+        'fa': row['title_fa'] ?? '', 'en': row['title_en'] ?? '',
+        'descFa': row['description_fa'] ?? '', 'descEn': row['description_en'] ?? '',
+        'group': row['category'] ?? 'learn', 'icon': _moduleIcon(row['icon_key']),
+      }).toList();
+      // Always keep the vehicle catalog reachable, even when the online
+      // learning_modules table has not yet been seeded with this shortcut.
+      final hasCatalog = online.any((m) =>
+        (m['fa'] ?? '').toString().contains('بانک اطلاعات فنی خودرو') ||
+        (m['en'] ?? '').toString().toLowerCase().contains('vehicle technical database'));
+      if (!hasCatalog) {
+        online.insert(0, fallbackModules.firstWhere((m) =>
+          (m['fa'] ?? '').toString().contains('بانک اطلاعات فنی خودرو')));
+      }
+      if (!mounted) return;
+      setState(() => modules = online);
     } catch (_) {
       if (mounted) setState(() => modules = fallbackModules);
     }
