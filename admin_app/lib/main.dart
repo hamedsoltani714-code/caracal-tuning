@@ -87,7 +87,8 @@ class AdminHome extends StatefulWidget {
 }
 class _AdminHomeState extends State<AdminHome>{
   int tab=0;bool busy=false;String? error;
-  List<Map<String,dynamic>> bookings=[],lessons=[],modules=[],users=[],memberships=[],notifications=[];
+  List<Map<String,dynamic>> bookings=[],lessons=[],modules=[],users=[],memberships=[],notifications=[],vehicles=[];
+  String vehicleQuery='';
   bool get owner=>widget.profile['role']=='owner';
   Map<String,dynamic> get perms=>Map<String,dynamic>.from(widget.profile['permissions']??{});
   bool get canBookings=>owner||perms['manage_bookings']==true;
@@ -101,7 +102,7 @@ class _AdminHomeState extends State<AdminHome>{
     if(mounted)setState((){busy=true;error=null;});
     try{
       if(canBookings){final r=await db.from('booking_requests').select('*').order('created_at',ascending:false).limit(200);bookings=List<Map<String,dynamic>>.from(r);}
-      if(canContent){final r=await db.from('lessons').select('*').order('created_at',ascending:false).limit(300);lessons=List<Map<String,dynamic>>.from(r);final mr=await db.from('learning_modules').select('*').order('sort_order').limit(300);modules=List<Map<String,dynamic>>.from(mr);}
+      if(canContent){final r=await db.from('lessons').select('*').order('created_at',ascending:false).limit(300);lessons=List<Map<String,dynamic>>.from(r);final mr=await db.from('learning_modules').select('*').order('sort_order').limit(300);modules=List<Map<String,dynamic>>.from(mr);final vr=await db.from('vehicle_catalog').select('*').eq('is_published',true).order('sort_order').limit(500);vehicles=List<Map<String,dynamic>>.from(vr);}
       if(owner||canUsers||canMemberships){final r=await db.from('profiles').select('id,email,role,permissions').order('created_at',ascending:false).limit(300);users=List<Map<String,dynamic>>.from(r);}
       if(canMemberships){final r=await db.from('memberships').select('*').order('created_at',ascending:false).limit(300);memberships=List<Map<String,dynamic>>.from(r);}
       if(canNotifications){final r=await db.from('app_notifications').select('*').order('created_at',ascending:false).limit(300);notifications=List<Map<String,dynamic>>.from(r);}
@@ -167,6 +168,7 @@ class _AdminHomeState extends State<AdminHome>{
       (name:'خانه',icon:Icons.dashboard_outlined,page:overview()),
       if(canBookings)(name:'نوبت‌ها',icon:Icons.calendar_month_outlined,page:bookingPage()),
       if(canContent)(name:'آموزش',icon:Icons.school_outlined,page:contentPage()),
+      if(canContent)(name:'بانک خودروها',icon:Icons.directions_car_filled_outlined,page:vehiclePage()),
       if(canMemberships)(name:'اشتراک‌ها',icon:Icons.workspace_premium_outlined,page:membershipsPage()),
       if(canNotifications)(name:'اعلان‌ها',icon:Icons.notifications_active_outlined,page:notificationsPage()),
       if(owner||canUsers)(name:'کاربران',icon:Icons.people_outline,page:usersPage()),
@@ -213,6 +215,19 @@ class _AdminHomeState extends State<AdminHome>{
       Wrap(spacing:5,children:[for(final e in {'pending':'در انتظار','confirmed':'تأیید','completed':'انجام شد','cancelled':'لغو'}.entries)OutlinedButton(onPressed:busy?null:()=>changeBooking(b,e.key),child:Text(e.value,style:const TextStyle(fontSize:10)))]),
     ]))),
   ]);
+  Widget vehiclePage(){
+    final q=vehicleQuery.trim().toLowerCase();
+    final filtered=vehicles.where((v){final text='${v['model_fa']??''} ${v['model_en']??''} ${v['make_fa']??''} ${v['make_en']??''}'.toLowerCase();return q.isEmpty||text.contains(q);}).toList();
+    return ListView(padding:const EdgeInsets.all(14),children:[
+      Row(children:[const Expanded(child:Text('بانک اطلاعات خودروها',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900))),Text('${filtered.length} / ${vehicles.length}',style:const TextStyle(color:red,fontWeight:FontWeight.bold))]),
+      const SizedBox(height:6),const Text('فهرست خودروهای ثبت‌شده در بانک مرکزی CARACAL',style:TextStyle(color:silver)),
+      const SizedBox(height:10),TextField(onChanged:(v)=>setState(()=>vehicleQuery=v),decoration:const InputDecoration(prefixIcon:Icon(Icons.search),hintText:'جست‌وجوی خودرو یا سازنده')),
+      const SizedBox(height:12),
+      if(vehicles.isEmpty)empty('خودروی منتشرشده‌ای دریافت نشد. برای بررسی اتصال، دکمه بروزرسانی را بزنید.'),
+      if(vehicles.isNotEmpty&&filtered.isEmpty)empty('موردی با این عبارت پیدا نشد.'),
+      ...filtered.map((v)=>card(ListTile(contentPadding:EdgeInsets.zero,leading:const CircleAvatar(backgroundColor:bg,child:Icon(Icons.directions_car,color:silver)),title:Text((v['model_fa']??'بدون نام').toString(),style:const TextStyle(fontWeight:FontWeight.bold)),subtitle:Text('${v['make_fa']??''} • ${v['model_en']??''}\\n${v['is_verified']==true?'تأییدشده':'در انتظار بررسی اطلاعات فنی'}',style:const TextStyle(color:silver,fontSize:12)),isThreeLine:true,trailing:const Icon(Icons.chevron_left,color:silver))))
+    ]);
+  }
   Widget contentPage()=>ListView(padding:const EdgeInsets.all(14),children:[
     Row(children:[const Expanded(child:Text('مدیریت محتوای اپ',style:TextStyle(fontSize:21,fontWeight:FontWeight.w900))),FilledButton.icon(onPressed:()=>editLesson(),icon:const Icon(Icons.add),label:const Text('مطلب جدید'))]),
     const SizedBox(height:8),const Text('مطالب آموزشی منتشرشده و پیش‌نویس‌ها',style:TextStyle(color:silver)),
