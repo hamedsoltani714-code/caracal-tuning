@@ -145,34 +145,19 @@ Deno.serve(async (req) => {
     if (profileError) throw profileError;
 
     // Send a one-time email code. The admin must verify it and set a personal password.
-    const requestedRedirect = String(body.redirectTo || "").trim();
-    let emailRedirectTo: string | undefined;
-    if (requestedRedirect) {
-      let parsed: URL;
-      try {
-        parsed = new URL(requestedRedirect);
-      } catch {
-        return json({ success: false, error: "Invalid admin redirect URL." }, 400);
-      }
-      if (
-        parsed.protocol !== "https:" &&
-        parsed.hostname !== "localhost" &&
-        parsed.hostname !== "127.0.0.1"
-      ) {
-        return json({ success: false, error: "Admin redirect must use HTTPS." }, 400);
-      }
-      if (parsed.username || parsed.password) {
-        return json({ success: false, error: "Invalid admin redirect URL." }, 400);
-      }
-      const configuredAdminUrl = Deno.env.get("ADMIN_APP_URL");
-      if (configuredAdminUrl) {
-        const configuredOrigin = new URL(configuredAdminUrl).origin;
-        if (parsed.origin !== configuredOrigin) {
-          return json({ success: false, error: "Redirect URL does not match the configured admin site." }, 400);
-        }
-      }
-      emailRedirectTo = parsed.origin + "/";
+    // CARACAL ADMIN production origin is fixed to prevent localhost and open redirects.
+    const allowedAdminOrigin = "https://hamed-soltani714.workers.dev";
+    const requestedRedirect = String(body.redirectTo || allowedAdminOrigin).trim();
+    let parsedRedirect: URL;
+    try {
+      parsedRedirect = new URL(requestedRedirect);
+    } catch {
+      return json({ success: false, error: "Invalid admin redirect URL." }, 400);
     }
+    if (parsedRedirect.origin !== allowedAdminOrigin || parsedRedirect.username || parsedRedirect.password) {
+      return json({ success: false, error: "Admin redirect must use the official CARACAL ADMIN website." }, 400);
+    }
+    const emailRedirectTo = allowedAdminOrigin + "/";
 
     const { error: otpError } = await authClient.auth.signInWithOtp({
       email,
