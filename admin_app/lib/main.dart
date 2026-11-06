@@ -457,3 +457,5 @@ class _AdminPermissionsState extends State<AdminPermissions>{
     Wrap(spacing:8,children:[OutlinedButton(onPressed:()=>widget.onSave(widget.user['id'].toString(),p),child:const Text('ذخیره دسترسی‌ها')),OutlinedButton.icon(onPressed:()=>widget.onDelete(widget.user),icon:const Icon(Icons.delete_outline,color:red),label:const Text('حذف مدیر',style:TextStyle(color:red))) ]),
   ]));
 }
+
+// Coordinated release marker: keep the admin APK aligned with the CARACAL TUNING main release.
