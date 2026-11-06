@@ -19,6 +19,9 @@ class _VehicleCatalogScreenState extends State<VehicleCatalogScreen> {
   List<Map<String, dynamic>> _vehicles = [];
   List<Map<String, dynamic>> _makes = [];
   bool _loading = true;
+  bool _hasAccess = false;
+  bool _isAdmin = false;
+  bool _signedIn = false;
   String? _error;
 
   String t(String fa, String en) => widget.english ? en : fa;
@@ -26,13 +29,62 @@ class _VehicleCatalogScreenState extends State<VehicleCatalogScreen> {
   @override
   void initState() {
     super.initState();
-    _loadCatalog();
+    _checkAccessAndLoad();
+  }
+
+  Future<void> _checkAccessAndLoad() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final client = Supabase.instance.client;
+      final user = client.auth.currentUser;
+      if (user == null) {
+        if (!mounted) return;
+        setState(() { _signedIn = false; _hasAccess = false; _loading = false; });
+        return;
+      }
+
+      var isAdmin = false;
+      try {
+        final profile = await client.from('profiles')
+            .select('role,permissions').eq('id', user.id).maybeSingle();
+        final role = (profile?['role'] ?? '').toString().toLowerCase();
+        final permissions = Map<String, dynamic>.from(profile?['permissions'] ?? {});
+        isAdmin = const {'owner', 'admin', 'super_admin'}.contains(role) ||
+            permissions['manage_content'] == true;
+      } catch (_) {
+        // A normal member does not need profile privileges to access the catalog.
+      }
+
+      var activeMembership = false;
+      try {
+        final rows = await client.from('memberships')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('status', 'active')
+            .or('starts_at.is.null,starts_at.lte.${DateTime.now().toUtc().toIso8601String()}')
+            .or('ends_at.is.null,ends_at.gt.${DateTime.now().toUtc().toIso8601String()}')
+            .limit(1);
+        activeMembership = (rows as List).isNotEmpty;
+      } catch (e) {
+        debugPrint('CARACAL catalog membership check: $e');
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _signedIn = true;
+        _isAdmin = isAdmin;
+        _hasAccess = isAdmin || activeMembership;
+      });
+      if (_hasAccess) await _loadCatalog();
+      else if (mounted) setState(() => _loading = false);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _loading = false; _error = e.toString(); });
+    }
   }
 
   Future<void> _loadCatalog() async {
     try {
-      // The live Supabase catalog is the source of truth. Only published rows
-      // are visible to app users; drafts stay in the admin workspace.
       final rows = await Supabase.instance.client
           .from('vehicle_catalog')
           .select('slug,make_id,make_fa,make_en,model_fa,model_en,body_type,year_start,year_end,summary_fa,summary_en,data_status,is_verified')
@@ -86,15 +138,12 @@ class _VehicleCatalogScreenState extends State<VehicleCatalogScreen> {
   }
 
   String _makeName(String id) {
-    Map<String, dynamic>? make;
     for (final item in _makes) {
       if (item['id'] == id) {
-        make = item;
-        break;
+        final name = item['name'];
+        if (name is Map) return (name[widget.english ? 'en' : 'fa'] ?? '').toString();
       }
     }
-    final name = make?['name'];
-    if (name is Map) return (name[widget.english ? 'en' : 'fa'] ?? '').toString();
     return '';
   }
 
@@ -105,7 +154,8 @@ class _VehicleCatalogScreenState extends State<VehicleCatalogScreen> {
       final model = v['model'] as Map? ?? {};
       final fa = (model['fa'] ?? '').toString().toLowerCase();
       final en = (model['en'] ?? '').toString().toLowerCase();
-      return query.isEmpty || fa.contains(query) || en.contains(query);
+      final make = _makeName(v['makeId']?.toString() ?? '').toLowerCase();
+      return query.isEmpty || fa.contains(query) || en.contains(query) || make.contains(query);
     }).toList();
 
     return Scaffold(
@@ -117,10 +167,7 @@ class _VehicleCatalogScreenState extends State<VehicleCatalogScreen> {
         actions: [
           IconButton(
             tooltip: t('بروزرسانی', 'Refresh'),
-            onPressed: _loading ? null : () {
-              setState(() => _loading = true);
-              _loadCatalog();
-            },
+            onPressed: _loading ? null : _checkAccessAndLoad,
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -134,65 +181,112 @@ class _VehicleCatalogScreenState extends State<VehicleCatalogScreen> {
                     Text(_error!, textAlign: TextAlign.center,
                         style: const TextStyle(color: _catalogSilver)),
                     const SizedBox(height: 12),
-                    OutlinedButton(onPressed: () {
-                      setState(() { _loading = true; _error = null; });
-                      _loadCatalog();
-                    }, child: Text(t('تلاش دوباره', 'Try again'))),
+                    OutlinedButton(onPressed: _checkAccessAndLoad,
+                        child: Text(t('تلاش دوباره', 'Try again'))),
                   ]),
                 ))
-              : ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    Text(t('مدل‌های منتشرشده: ${_vehicles.length}', 'Published models: ${_vehicles.length}'),
-                        style: const TextStyle(color: _catalogSilver, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _search,
-                      onChanged: (_) => setState(() {}),
-                      decoration: InputDecoration(
-                        hintText: t('جست‌وجوی نام خودرو...', 'Search vehicle models...'),
-                        prefixIcon: const Icon(Icons.search, color: _catalogRed),
-                        filled: true, fillColor: _catalogPanel,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    if (visible.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.all(28),
-                        child: Text(t('مدلی برای نمایش پیدا نشد.',
-                            'No published vehicle models match this search.'),
-                            textAlign: TextAlign.center, style: const TextStyle(color: _catalogSilver)),
-                      ),
-                    for (final vehicle in visible)
-                      Card(
-                        color: _catalogPanel,
-                        margin: const EdgeInsets.only(bottom: 9),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          side: const BorderSide(color: Colors.white12),
-                        ),
-                        child: ListTile(
-                          leading: const CircleAvatar(
-                            backgroundColor: Color(0xFF292D33),
-                            child: Icon(Icons.directions_car, color: _catalogSilver),
-                          ),
-                          title: Text(((vehicle['model'] as Map?)?[widget.english ? 'en' : 'fa'] ?? '').toString(),
-                              style: const TextStyle(fontWeight: FontWeight.w800)),
-                          subtitle: Text(_makeName(vehicle['makeId']?.toString() ?? ''),
-                              style: const TextStyle(color: _catalogSilver)),
-                          trailing: const Icon(Icons.chevron_right, color: _catalogRed),
-                          onTap: () => _showVehicle(vehicle),
-                        ),
-                      ),
-                    const SizedBox(height: 12),
-                    Text(t('اطلاعات فنی فقط پس از بررسی منبع و تأیید تخصصی منتشر می‌شوند.',
-                        'Technical details are published only after source review and expert verification.'),
-                        style: const TextStyle(color: Colors.white54, fontSize: 11, height: 1.6)),
-                  ],
-                ),
+              : !_hasAccess
+                  ? _lockedView()
+                  : _catalogView(visible),
     );
   }
+
+  Widget _lockedView() => Center(
+    child: SingleChildScrollView(
+      padding: const EdgeInsets.all(26),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: _catalogPanel,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: _catalogSilver.withOpacity(.25)),
+        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.lock_rounded, color: _catalogRed, size: 58),
+          const SizedBox(height: 16),
+          Text(t('دسترسی اشتراکی', 'SUBSCRIBER ACCESS'),
+              style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900, letterSpacing: 1)),
+          const SizedBox(height: 12),
+          Text(
+            _signedIn
+                ? t('تمام بخش بانک اطلاعات خودروها ویژه اعضای دارای اشتراک فعال است. برای فعال‌سازی یا تمدید اشتراک، به بخش گاراژ و حساب کاربری بروید و وضعیت عضویت خود را بررسی کنید.',
+                    'The entire vehicle database is available only to members with an active subscription. To activate or renew, open Garage & Account and check your membership.')
+                : t('تمام بخش بانک اطلاعات خودروها ویژه اعضای دارای اشتراک فعال است. ابتدا وارد حساب کاربری شوید و سپس اشتراک خود را فعال کنید.',
+                    'The entire vehicle database requires an active subscription. Sign in to your account, then activate a membership.'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: _catalogSilver, height: 1.8),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(width: double.infinity, child: FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: _catalogRed, foregroundColor: Colors.white),
+            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.arrow_back),
+            label: Text(t('بازگشت به برنامه', 'BACK TO APP')),
+          )),
+          const SizedBox(height: 8),
+          Text(t('پس از فعال شدن اشتراک، این صفحه را دوباره باز یا بروزرسانی کنید.',
+              'After your subscription is activated, reopen or refresh this page.'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white54, fontSize: 11)),
+        ]),
+      ),
+    ),
+  );
+
+  Widget _catalogView(List<Map<String, dynamic>> visible) => ListView(
+    padding: const EdgeInsets.all(16),
+    children: [
+      Row(children: [
+        Expanded(child: Text(t('مدل‌های منتشرشده: ${_vehicles.length}', 'Published models: ${_vehicles.length}'),
+            style: const TextStyle(color: _catalogSilver, fontWeight: FontWeight.bold))),
+        if (_isAdmin) const Icon(Icons.admin_panel_settings, color: _catalogRed, size: 18),
+      ]),
+      const SizedBox(height: 12),
+      TextField(
+        controller: _search,
+        onChanged: (_) => setState(() {}),
+        decoration: InputDecoration(
+          hintText: t('جست‌وجوی خودرو یا سازنده...', 'Search vehicle or manufacturer...'),
+          prefixIcon: const Icon(Icons.search, color: _catalogRed),
+          filled: true, fillColor: _catalogPanel,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      ),
+      const SizedBox(height: 14),
+      if (visible.isEmpty)
+        Padding(
+          padding: const EdgeInsets.all(28),
+          child: Text(t('مدلی برای نمایش پیدا نشد.', 'No published vehicle models match this search.'),
+              textAlign: TextAlign.center, style: const TextStyle(color: _catalogSilver)),
+        ),
+      for (final vehicle in visible)
+        Card(
+          color: _catalogPanel,
+          margin: const EdgeInsets.only(bottom: 9),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: const BorderSide(color: Colors.white12),
+          ),
+          child: ListTile(
+            leading: const CircleAvatar(
+              backgroundColor: Color(0xFF292D33),
+              child: Icon(Icons.directions_car, color: _catalogSilver),
+            ),
+            title: Text(((vehicle['model'] as Map?)?[widget.english ? 'en' : 'fa'] ?? '').toString(),
+                style: const TextStyle(fontWeight: FontWeight.w800)),
+            subtitle: Text(_makeName(vehicle['makeId']?.toString() ?? ''),
+                style: const TextStyle(color: _catalogSilver)),
+            trailing: const Icon(Icons.chevron_right, color: _catalogRed),
+            onTap: () => _showVehicle(vehicle),
+          ),
+        ),
+      const SizedBox(height: 12),
+      Text(t('اطلاعات فنی فقط پس از بررسی منبع و تأیید تخصصی منتشر می‌شوند.',
+          'Technical details are published only after source review and expert verification.'),
+          style: const TextStyle(color: Colors.white54, fontSize: 11, height: 1.6)),
+    ],
+  );
 
   void _showVehicle(Map<String, dynamic> vehicle) {
     final model = vehicle['model'] as Map? ?? {};
