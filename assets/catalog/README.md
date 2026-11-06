@@ -1,19 +1,24 @@
 # CARACAL TUNING — Educational Vehicle Catalog
 
-This directory contains searchable, bilingual educational metadata for vehicles and ECU identification. It is not a repository for ECU calibration binaries, modified maps, or files intended to alter engine behavior.
+این پوشه فهرست دوزبانه خودروها و محتوای آموزشی مجاز را نگه می‌دارد.
 
-## Structure
+## فایل‌ها
+- `vehicles.json`: فهرست خانواده‌های خودرویی ایران‌خودرو و سایپا با شناسه ثابت و برچسب فارسی/انگلیسی.
+- `ecu-info/`: یادداشت‌های آموزشی شناسایی ECU و اطلاعات عمومی؛ فقط پس از بررسی منبع.
+- `learning/`: درس‌ها، نمودارها و مبانی عیب‌یابی ایمن.
 
-- `vehicles.json`: vehicle index and supported display metadata.
-- `ecu-info/`: educational ECU identification notes (manufacturer, family, connector overview, and references).
-- `learning/`: lessons, diagrams, and safe diagnostic theory.
+## وضعیت داده‌های فعلی
+- فهرست اولیه شامل ۱۸ خانواده/مدل از ایران‌خودرو و سایپا است.
+- این نسخه فقط «فهرست مدل‌ها» است؛ سال تولید، تیپ، موتور و ECU عمداً خالی هستند تا اطلاعات تأییدنشده وارد بانک نشود.
+- همه رکوردها در وضعیت `draft` هستند و هنوز برای نمایش عمومی تأیید نشده‌اند.
+- این تغییر فقط بانک اطلاعاتی GitHub را آماده کرده است؛ اتصال به اپ و پنل ادمین هنوز انجام نشده است.
 
-## Contribution rules
+## قواعد ثبت محتوا
+1. فقط محتوایی را اضافه کنید که مالک آن هستید یا مجوز روشن برای بازنشرش دارید.
+2. برای هر داده فنی، منبع، تاریخ بررسی و وضعیت اعتبارسنجی را ثبت کنید.
+3. اطلاعات فارسی و انگلیسی را تا حد امکان کنار هم نگه دارید.
+4. اطلاعات شخصی، رمزها، کلیدهای API و داده‌های محرمانه را وارد مخزن نکنید.
+5. این مخزن برای فایل‌های خام کالیبراسیون، دامپ یا نقشه‌های قابل اعمال روی ECU نیست؛ فقط فراداده آموزشی، اطلاعات عمومی و مستندات مجاز پذیرفته می‌شود.
 
-1. Add only material you own or are explicitly licensed to redistribute.
-2. Keep source attribution and license information with each item.
-3. Do not upload personal data, credentials, secrets, or proprietary calibration files.
-4. Use stable IDs; keep Persian (`fa`) and English (`en`) labels where possible.
-5. Validate JSON before committing.
-
-The app and admin panel should consume this catalog through a read-only catalog layer; administrative publishing and user permissions belong in the backend, not in this public file tree.
+## مرحله بعد
+برای هر مدل، منابع معتبر را بررسی و سال‌ها، تیپ‌ها و مشخصات عمومی را تکمیل می‌کنیم؛ سپس لایه خواندن کاتالوگ را در اپ و پنل ادمین پیاده‌سازی می‌کنیم. انتشار نهایی باید از طریق بک‌اند و سطح دسترسی مدیران کنترل شود.
