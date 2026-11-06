@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
 
     // Send a one-time email code. The admin must verify it and set a personal password.
     // CARACAL ADMIN production origin is fixed to prevent localhost and open redirects.
-    const allowedAdminOrigin = "https://caracal-admin.hamedsoltani714.workers.dev";
+    const allowedAdminOrigin = "https://caracal-admin.hamed-soltani714.workers.dev";
     const requestedRedirect = String(body.redirectTo || allowedAdminOrigin).trim();
     let parsedRedirect: URL;
     try {
