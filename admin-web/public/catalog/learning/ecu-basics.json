@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "lessons": [
+    {
+      "id": "ecu-fundamentals-001",
+      "category": "ecu-basics",
+      "title": {"fa": "آشنایی مقدماتی با ECU", "en": "Introduction to the ECU"},
+      "level": "beginner",
+      "summary": {
+        "fa": "ECU واحد الکترونیکی کنترل است که داده حسگرها را دریافت می‌کند و بر اساس طراحی سازنده، سامانه‌های مشخص خودرو را مدیریت می‌کند.",
+        "en": "An ECU is an electronic control unit that receives sensor data and manages designated vehicle systems according to the manufacturer's design."
+      },
+      "learningObjectives": {
+        "fa": ["آشنایی با مفهوم واحد کنترل الکترونیکی", "شناخت تفاوت کلی حسگر، واحد کنترل و عملگر", "درک اهمیت اطلاعات فنی معتبر و مختص همان خودرو"],
+        "en": ["Understand the concept of an electronic control unit", "Recognize the general roles of sensors, control units, and actuators", "Understand why verified vehicle-specific technical information matters"]
+      },
+      "content": {
+        "fa": "در خودروهای امروزی، حسگرها وضعیت بخش‌های مختلف را اندازه‌گیری می‌کنند. واحد کنترل داده‌های دریافتی را پردازش می‌کند و در محدوده طراحی‌شده، فرمان‌های لازم را به عملگرها می‌فرستد. تعداد و نوع واحدهای کنترل به مدل، سال ساخت و تجهیزات خودرو وابسته است؛ بنابراین برای شناسایی دقیق باید به مستندات معتبر همان خودرو مراجعه کرد.",
+        "en": "In modern vehicles, sensors measure conditions across different systems. A control unit processes the incoming data and sends commands to actuators within its designed operating limits. The number and type of control units depend on the vehicle model, year, and equipment, so accurate identification requires reliable documentation for that exact vehicle."
+      },
+      "safetyNote": {
+        "fa": "این درس صرفاً آموزشی است. بررسی یا تعمیر سامانه‌های الکترونیکی خودرو باید با ابزار مناسب و توسط فرد آموزش‌دیده انجام شود.",
+        "en": "This lesson is educational only. Inspection or repair of vehicle electronic systems should be performed with appropriate equipment by a trained person."
+      },
+      "sources": [],
+      "reviewedAt": null,
+      "publicationStatus": "draft"
+    }
+  ]
+}
