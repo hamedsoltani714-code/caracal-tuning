@@ -74,8 +74,7 @@ class _VehicleCatalogScreenState extends State<VehicleCatalogScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = t('اتصال به بانک مرکزی خودروها برقرار نشد. اتصال اینترنت و دسترسی دیتابیس را بررسی کن.',
-            'Could not connect to the live vehicle catalog. Check the connection and database access.');
+        _error = '${t('خطای دریافت اطلاعات:', 'Catalog request failed:')} $e';
       });
     }
   }
