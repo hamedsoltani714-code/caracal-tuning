@@ -225,7 +225,7 @@ class _AdminHomeState extends State<AdminHome>{
       const SizedBox(height:12),
       if(vehicles.isEmpty)empty('خودروی منتشرشده‌ای دریافت نشد. برای بررسی اتصال، دکمه بروزرسانی را بزنید.'),
       if(vehicles.isNotEmpty&&filtered.isEmpty)empty('موردی با این عبارت پیدا نشد.'),
-      ...filtered.map((v)=>card(ListTile(contentPadding:EdgeInsets.zero,leading:const CircleAvatar(backgroundColor:bg,child:Icon(Icons.directions_car,color:silver)),title:Text((v['model_fa']??'بدون نام').toString(),style:const TextStyle(fontWeight:FontWeight.bold)),subtitle:Text('${v['make_fa']??''} • ${v['model_en']??''}\\n${v['is_verified']==true?'تأییدشده':'در انتظار بررسی اطلاعات فنی'}',style:const TextStyle(color:silver,fontSize:12)),isThreeLine:true,trailing:const Icon(Icons.chevron_left,color:silver))))
+      ...filtered.map((v)=>card(ListTile(contentPadding:EdgeInsets.zero,leading:const CircleAvatar(backgroundColor:bg,child:Icon(Icons.directions_car,color:silver)),title:Text((v['model_fa']??'بدون نام').toString(),style:const TextStyle(fontWeight:FontWeight.bold)),subtitle:Text('${v['make_fa']??''} • ${v['model_en']??''}\n${v['is_verified']==true?'تأییدشده':'در انتظار بررسی اطلاعات فنی'}',style:const TextStyle(color:silver,fontSize:12)),isThreeLine:true,trailing:const Icon(Icons.chevron_left,color:silver))))
     ]);
   }
   Widget contentPage()=>ListView(padding:const EdgeInsets.all(14),children:[
