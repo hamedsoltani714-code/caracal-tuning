@@ -358,7 +358,7 @@ class _VehicleCatalogScreenState extends State<VehicleCatalogScreen> {
                       title: Text(title.isEmpty ? t('منبع آموزشی', 'Learning resource') : title),
                       subtitle: Text((description.isNotEmpty ? description : (item['resource_type'] ?? '').toString()) + size, style: const TextStyle(color: _catalogSilver, fontSize: 11)),
                       trailing: Icon(url.isNotEmpty ? Icons.open_in_new : Icons.lock_outline, color: _catalogRed),
-                      onTap: url.isEmpty ? null : () => _openResource(url),
+                      onTap: () { if (url.isNotEmpty) { _openResource(url); } else if (description.isNotEmpty) { showDialog<void>(context: context, builder: (dialogContext) => AlertDialog(backgroundColor: _catalogPanel, title: Text(title), content: SingleChildScrollView(child: SelectableText(description, style: const TextStyle(color: _catalogSilver, height: 1.7))), actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(t('بستن', 'Close')))])); } },
                     ));
                   }).toList());
                 },
