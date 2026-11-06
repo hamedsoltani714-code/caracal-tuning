@@ -7,6 +7,8 @@ on:
       - 'admin_app/**'
       - 'admin-web/**'
       - '.github/workflows/build-admin.yml'
+      - '.github/workflows/build-admin-apk.yml'
+      - '.github/workflows/build-admin-web.yml'
   workflow_dispatch:
 
 permissions:
@@ -122,7 +124,7 @@ jobs:
       - name: Build release APK
         env:
           SUPABASE_URL: https://fabbzaviesndfobxhrxf.supabase.co
-          SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZhYmJ6YXZpZXNuZGZvYnhocnhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1MzEyNjcsImV4cCI6MjEwOTEwNzI2N30.mwJfaLmV0dKso2dsXxX3gr2naFYqFEFtGi6Nw731RNk
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           flutter build apk --release --obfuscate --split-debug-info=build/symbols \
             --dart-define=SUPABASE_URL="$SUPABASE_URL" \
@@ -157,6 +159,6 @@ jobs:
       - name: Build web panel
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://fabbzaviesndfobxhrxf.supabase.co
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZhYmJ6YXZpZXNuZGZvYnhocnhmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1MzEyNjcsImV4cCI6MjEwOTEwNzI2N30.mwJfaLmV0dKso2dsXxX3gr2naFYqFEFtGi6Nw731RNk
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           npm run build
