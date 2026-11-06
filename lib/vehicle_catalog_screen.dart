@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 const _catalogBg = Color(0xFF08090B);
 const _catalogPanel = Color(0xFF15171B);
@@ -32,28 +33,51 @@ class _VehicleCatalogScreenState extends State<VehicleCatalogScreen> {
 
   Future<void> _loadCatalog() async {
     try {
-      final raw = await rootBundle.loadString('assets/catalog/vehicles.json');
-      final data = jsonDecode(raw) as Map<String, dynamic>;
-      final vehicles = (data['vehicles'] as List)
-          .whereType<Map>()
-          .map((e) => Map<String, dynamic>.from(e))
-          .where((e) => e['publicationStatus'] == 'published')
-          .toList();
-      final makes = (data['makes'] as List)
-          .whereType<Map>()
-          .map((e) => Map<String, dynamic>.from(e))
-          .toList();
+      // The live Supabase catalog is the source of truth. Only published rows
+      // are visible to app users; drafts stay in the admin workspace.
+      final rows = await Supabase.instance.client
+          .from('vehicle_catalog')
+          .select('slug,make_id,make_fa,make_en,model_fa,model_en,body_type,year_start,year_end,summary_fa,summary_en,data_status,is_verified')
+          .eq('is_published', true)
+          .order('sort_order');
+
+      final vehicles = (rows as List).map((raw) {
+        final row = Map<String, dynamic>.from(raw as Map);
+        return <String, dynamic>{
+          'id': row['slug'],
+          'makeId': row['make_id'],
+          'model': {'fa': row['model_fa'], 'en': row['model_en']},
+          'bodyType': row['body_type'],
+          'yearStart': row['year_start'],
+          'yearEnd': row['year_end'],
+          'summary': {'fa': row['summary_fa'], 'en': row['summary_en']},
+          'dataStatus': row['data_status'],
+          'isVerified': row['is_verified'] == true,
+        };
+      }).toList();
+
+      final makeMap = <String, Map<String, dynamic>>{};
+      for (final raw in rows) {
+        final row = Map<String, dynamic>.from(raw as Map);
+        makeMap[row['make_id'].toString()] = {
+          'id': row['make_id'],
+          'name': {'fa': row['make_fa'], 'en': row['make_en']},
+        };
+      }
+
       if (!mounted) return;
       setState(() {
         _vehicles = vehicles;
-        _makes = makes;
+        _makes = makeMap.values.toList();
         _loading = false;
+        _error = null;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = e.toString();
+        _error = t('اتصال به بانک مرکزی خودروها برقرار نشد. اتصال اینترنت و دسترسی دیتابیس را بررسی کن.',
+            'Could not connect to the live vehicle catalog. Check the connection and database access.');
       });
     }
   }
@@ -93,18 +117,36 @@ class _VehicleCatalogScreenState extends State<VehicleCatalogScreen> {
         title: Text(t('بانک اطلاعات خودروها', 'VEHICLE DATABASE')),
         backgroundColor: _catalogBg,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            tooltip: t('بروزرسانی', 'Refresh'),
+            onPressed: _loading ? null : () {
+              setState(() => _loading = true);
+              _loadCatalog();
+            },
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: _catalogRed))
           : _error != null
               ? Center(child: Padding(
                   padding: const EdgeInsets.all(24),
-                  child: Text(t('بارگذاری بانک اطلاعاتی انجام نشد.', 'Could not load the vehicle catalog.'),
-                      textAlign: TextAlign.center, style: const TextStyle(color: _catalogSilver))))
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Text(_error!, textAlign: TextAlign.center,
+                        style: const TextStyle(color: _catalogSilver)),
+                    const SizedBox(height: 12),
+                    OutlinedButton(onPressed: () {
+                      setState(() { _loading = true; _error = null; });
+                      _loadCatalog();
+                    }, child: Text(t('تلاش دوباره', 'Try again'))),
+                  ]),
+                ))
               : ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
-                    Text(t('مدل‌های ثبت‌شده: ${_vehicles.length}', 'Indexed models: ${_vehicles.length}'),
+                    Text(t('مدل‌های منتشرشده: ${_vehicles.length}', 'Published models: ${_vehicles.length}'),
                         style: const TextStyle(color: _catalogSilver, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 12),
                     TextField(
@@ -121,7 +163,7 @@ class _VehicleCatalogScreenState extends State<VehicleCatalogScreen> {
                     if (visible.isEmpty)
                       Padding(
                         padding: const EdgeInsets.all(28),
-                        child: Text(t('مدلی پیدا نشد یا هنوز اطلاعاتی برای نمایش منتشر نشده است.',
+                        child: Text(t('مدلی برای نمایش پیدا نشد.',
                             'No published vehicle models match this search.'),
                             textAlign: TextAlign.center, style: const TextStyle(color: _catalogSilver)),
                       ),
@@ -147,8 +189,8 @@ class _VehicleCatalogScreenState extends State<VehicleCatalogScreen> {
                         ),
                       ),
                     const SizedBox(height: 12),
-                    Text(t('اطلاعات فقط پس از بررسی منبع و تأیید فنی منتشر می‌شوند.',
-                        'Technical details are shown only after source verification and review.'),
+                    Text(t('اطلاعات فنی فقط پس از بررسی منبع و تأیید تخصصی منتشر می‌شوند.',
+                        'Technical details are published only after source review and expert verification.'),
                         style: const TextStyle(color: Colors.white54, fontSize: 11, height: 1.6)),
                   ],
                 ),
@@ -158,6 +200,8 @@ class _VehicleCatalogScreenState extends State<VehicleCatalogScreen> {
   void _showVehicle(Map<String, dynamic> vehicle) {
     final model = vehicle['model'] as Map? ?? {};
     final name = (model[widget.english ? 'en' : 'fa'] ?? '').toString();
+    final summary = vehicle['summary'] as Map? ?? {};
+    final summaryText = (summary[widget.english ? 'en' : 'fa'] ?? '').toString();
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: _catalogPanel,
@@ -174,12 +218,13 @@ class _VehicleCatalogScreenState extends State<VehicleCatalogScreen> {
               Text(_makeName(vehicle['makeId']?.toString() ?? ''),
                   style: const TextStyle(color: _catalogSilver)),
               const SizedBox(height: 18),
-              Text(t('جزئیات سال ساخت، موتور و ECU هنوز در مرحله گردآوری و راستی‌آزمایی است.',
-                  'Year, engine and ECU details are still being collected and verified.'),
+              Text(summaryText.isNotEmpty ? summaryText : t(
+                  'این رکورد فعلاً فقط شامل نام و خانواده خودرو است. مشخصات فنی پس از بررسی منابع معتبر تکمیل می‌شود.',
+                  'This record currently contains only the vehicle name and model family. Technical details will be added after reliable source review.'),
                   style: const TextStyle(height: 1.7, color: _catalogSilver)),
               const SizedBox(height: 12),
-              Text(t('برای جلوگیری از نمایش اطلاعات اشتباه، جزئیات تأییدنشده نمایش داده نمی‌شود.',
-                  'Unverified technical details are intentionally hidden to avoid misleading information.'),
+              Text(t('وضعیت: فهرست اولیه مدل — اطلاعات فنی هنوز تأیید نشده است.',
+                  'Status: initial model index — technical details are not yet verified.'),
                   style: const TextStyle(fontSize: 11, color: Colors.white54, height: 1.6)),
               const SizedBox(height: 8),
               Align(
