@@ -34,6 +34,7 @@ flutter:
     - assets/130315.png
     - assets/Intro.mp4
     - assets/images/startup.mp4
+    - assets/catalog/vehicles.json
 
 flutter_launcher_icons:
   android: true
