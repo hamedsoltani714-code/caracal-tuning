@@ -157,7 +157,7 @@ Deno.serve(async (req) => {
     if (parsedRedirect.origin !== allowedAdminOrigin || parsedRedirect.username || parsedRedirect.password) {
       return json({ success: false, error: "Admin redirect must use the official CARACAL ADMIN website." }, 400);
     }
-    const emailRedirectTo = allowedAdminOrigin + "/";
+    const emailRedirectTo = allowedAdminOrigin + "/?flow=activate";
 
     const { error: otpError } = await authClient.auth.signInWithOtp({
       email,
