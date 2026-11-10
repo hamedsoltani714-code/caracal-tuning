@@ -47,12 +47,14 @@ jobs:
               raise SystemExit("Gradle wrapper properties file was not generated.")
 
           source = wrapper.read_text()
-          updated, count = re.subn(
-              r"https\\?://services\\.gradle\\.org/distributions/",
+          updated = source.replace(
+              "https\\://services.gradle.org/distributions/",
               "https://downloads.gradle.org/distributions/",
-              source,
+          ).replace(
+              "https://services.gradle.org/distributions/",
+              "https://downloads.gradle.org/distributions/",
           )
-          if count == 0 and "downloads.gradle.org/distributions/" not in source:
+          if "downloads.gradle.org/distributions/" not in updated:
               raise SystemExit("Unexpected Gradle distribution URL; refusing to guess.")
           if "downloads.gradle.org/distributions/" not in updated:
               raise SystemExit("Direct Gradle distribution URL was not configured.")
