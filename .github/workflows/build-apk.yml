@@ -35,6 +35,32 @@ jobs:
           if [ ! -d android ]; then
             flutter create --project-name caracal_tuning --platforms=android .
           fi
+      
+      - name: Use direct official Gradle distribution endpoint
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          wrapper = Path("android/gradle/wrapper/gradle-wrapper.properties")
+          if not wrapper.is_file():
+              raise SystemExit("Gradle wrapper properties file was not generated.")
+
+          source = wrapper.read_text()
+          updated, count = re.subn(
+              r"https\\?://services\\.gradle\\.org/distributions/",
+              "https://downloads.gradle.org/distributions/",
+              source,
+          )
+          if count == 0 and "downloads.gradle.org/distributions/" not in source:
+              raise SystemExit("Unexpected Gradle distribution URL; refusing to guess.")
+          if "downloads.gradle.org/distributions/" not in updated:
+              raise SystemExit("Direct Gradle distribution URL was not configured.")
+
+          wrapper.write_text(updated)
+          print("Gradle wrapper configured to use the official direct distribution host.")
+          print(next(line for line in updated.splitlines() if line.startswith("distributionUrl=")))
+          PY
 
       - name: Ensure Android network permissions
         run: |
