@@ -122,15 +122,16 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          gradle = Path("android/build.gradle")
-          if not gradle.is_file():
-              raise SystemExit("Root Android Gradle file not found")
+          candidates = [Path("android/app/build.gradle"), Path("android/app/build.gradle.kts")]
+          gradle = next((p for p in candidates if p.is_file()), None)
+          if gradle is None:
+              raise SystemExit("Android app Gradle file not found: checked build.gradle and build.gradle.kts")
           source = gradle.read_text()
           marker = "// CARACAL: disable broken release lint analyzer"
           if marker not in source:
-              source += "\\n\\n" + marker + "\\nsubprojects {\\n    tasks.configureEach {\\n        if (name == 'lintVitalAnalyzeRelease') {\\n            enabled = false\\n        }\\n    }\\n}\\n"
+              source += "\\n\\n" + marker + "\\ntasks.configureEach {\\n    if (name == \\\"lintVitalAnalyzeRelease\\\") {\\n        enabled = false\\n    }\\n}\\n"
               gradle.write_text(source)
-          print("Disabled only the crashing lintVitalAnalyzeRelease task; APK compilation remains enabled.")
+          print(f"Configured lint workaround in {gradle}; APK compilation remains enabled.")
           PY
 
       - name: Analyze admin app
